@@ -3,7 +3,7 @@ name = "pincel-ia"
 version = "0.1.0"
 description = "Conector MCP que lleva tus prompts de Claude a ChatGPT y recibe las imágenes creadas allí."
 requires-python = ">=3.10"
-dependencies = ["mcp>=2.3,<3", "uvicorn>=0.30", "python-multipart>=0.0.9"]
+dependencies = ["mcp>=2.3,<3", "uvicorn>=0.30", "python-multipart>=0.0.9", "pillow>=10", "itsdangerous>=2.1"]
 
 [project.scripts]
 pincel-ia = "pincel_ia.server:main"

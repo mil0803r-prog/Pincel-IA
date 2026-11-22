@@ -1,16 +1,18 @@
-# Despliegue en Render (render.com): New > Blueprint > elige este repo.
+# Despliegue en Render (render.com): New > Blueprint > elige este repositorio.
 services:
   - type: web
     name: pincel-ia
     runtime: docker
-    plan: starter            # el plan gratis no permite disco: las imágenes se borrarían al reiniciar
-    healthCheckPath: /
+    plan: starter            # el plan gratis no tiene disco: las imágenes se borrarían al reiniciar
+    healthCheckPath: /api/sesion
     envVars:
+      - key: PINCEL_CLAVE
+        sync: false          # tu contraseña para entrar a la app (Render te la pide al crear)
       - key: PINCEL_TOKEN
-        generateValue: true  # contraseña secreta del conector; la ves en Environment
+        generateValue: true  # clave secreta del conector, generada automáticamente
       - key: PINCEL_URL_PUBLICA
-        sync: false          # pon aquí la URL que te da Render, ej. https://pincel-ia.onrender.com
+        sync: false          # la URL que te da Render, ej. https://pincel-ia.onrender.com
     disk:
       name: datos
       mountPath: /datos
-      sizeGB: 1
+      sizeGB: 5

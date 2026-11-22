@@ -1,0 +1,6 @@
+.venv
+datos
+web/node_modules
+pincel_ia/static
+**/__pycache__
+.git
