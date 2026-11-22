@@ -1,0 +1,12 @@
+[project]
+name = "pincel-ia"
+version = "0.1.0"
+description = "Servidor MCP que conecta Claude con la API de imágenes de OpenAI para generar lotes de imágenes profesionales."
+requires-python = ">=3.10"
+dependencies = ["mcp>=2.3,<3", "openai>=3.57,<4"]
+
+[project.scripts]
+pincel-ia = "pincel_ia.server:main"
+
+[tool.setuptools]
+packages = ["pincel_ia"]
