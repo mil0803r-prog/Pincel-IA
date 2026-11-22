@@ -4,5 +4,4 @@ __pycache__/
 .env
 datos/
 web/node_modules/
-pincel_ia/static/
 demo-build/

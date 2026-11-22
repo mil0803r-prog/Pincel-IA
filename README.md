@@ -51,10 +51,10 @@ ChatGPT solo se conecta a servidores en internet con HTTPS.
 ### Opción A: Vercel + Neon (gratis para empezar)
 Vercel no guarda archivos en disco, así que Pincel IA usa una base de datos **Postgres (Neon)** donde guarda campañas **e imágenes**. El código lo detecta solo: con `DATABASE_URL` usa Postgres, sin ella usa SQLite.
 
-1. En Vercel: **Add New → Project** → importa el repositorio, con la rama `main`.
-2. En la pantalla de configuración:
-   - **Root Directory:** `./`
-   - **Application Preset:** cámbialo de *Services* a **Other**. Todo lo demás lo define `vercel.json`.
+La interfaz ya viene **compilada dentro del repositorio** (`pincel_ia/static`) y la app de Python (`app.py`) sirve todo: interfaz, API, imágenes y conector. Vercel solo tiene que desplegar esa app.
+
+1. En Vercel: **Add New → Project** → elige el repositorio, con la rama `main`.
+2. Aparece la pantalla *"Multiple applications detected"*. Pulsa **Import single project** en la fila **`app` (Python)**. La fila `web` no hace falta, porque la interfaz ya está compilada.
 3. Abre **Environment Variables** y agrega:
    - `PINCEL_CLAVE`: la contraseña para entrar a la app.
    - `PINCEL_TOKEN`: una clave larga y aleatoria (forma parte de la URL del conector; no la compartas).
@@ -62,6 +62,8 @@ Vercel no guarda archivos en disco, así que Pincel IA usa una base de datos **P
 5. En el proyecto, ve a **Storage → Create Database → Neon (Postgres)** y conéctala al proyecto en todos los entornos. Vercel agrega `DATABASE_URL` solo.
 6. Ve a **Deployments → ⋯ → Redeploy**. Entra a tu dirección `https://TU-PROYECTO.vercel.app` con tu contraseña.
 7. **Importante:** en **Settings → Deployment Protection** desactiva la protección para *Production*. Si está activa, ChatGPT y Claude no pueden llegar al conector.
+
+> Si cambias la interfaz (`web/`), recompílala con `cd web && npm run build` y sube también la carpeta `pincel_ia/static`. Vercel no la compila por ti.
 
 Límites de Vercel que la app ya maneja:
 - **Peticiones de más de 4,5 MB:** el navegador reduce las imágenes pesadas y las reparte en tandas antes de subirlas; si ChatGPT envía una más grande, el servidor la aligera al guardarla.
@@ -118,8 +120,7 @@ pincel_ia/            Servidor (Python)
   db.py               Base de datos (SQLite o Postgres)
   archivos.py         Imágenes y miniaturas (disco o base de datos)
   auth.py             Inicio de sesión
-api/index.py          Punto de entrada para Vercel
-vercel.json           Configuración de Vercel (compilación y rutas)
+app.py                Punto de entrada para Vercel
 web/                  Interfaz (React + TypeScript + Vite)
   src/pages/          Inicio, Campañas, Campaña, Biblioteca, Conexiones, Login
   src/components/     Menú, visor, tarjetas, ventanas, avisos
