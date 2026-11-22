@@ -11,7 +11,7 @@ export default function Biblioteca() {
   const [visor, setVisor] = useState<number | null>(null);
 
   useEffect(() => {
-    api.campanas().then(setCampanas).catch(() => {});
+    api.campanas().then((cs) => setCampanas(cs.filter((c) => c.hechas > 0))).catch(() => {});
   }, []);
   useEffect(() => {
     setImagenes(null);
@@ -20,28 +20,34 @@ export default function Biblioteca() {
 
   return (
     <>
-      <Cabecera titulo="Biblioteca" subtitulo={imagenes ? `${imagenes.length} imágenes` : "Todas tus imágenes en un solo lugar"}>
-        <select className="select input" style={{ width: 240 }} value={filtro} onChange={(e) => setFiltro(e.target.value)} aria-label="Filtrar por campaña">
-          <option value="">Todas las campañas</option>
-          {campanas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
-      </Cabecera>
+      <Cabecera titulo={<>Biblioteca</>} subtitulo={imagenes ? `${imagenes.length} imágenes listas para usar` : "Todas tus imágenes en un solo lugar"} />
+
+      {campanas.length > 0 && (
+        <div className="chips" role="tablist">
+          <button className={`chip ${filtro === "" ? "on" : ""}`} onClick={() => setFiltro("")} role="tab" aria-selected={filtro === ""}>Todas</button>
+          {campanas.map((c) => (
+            <button key={c.id} className={`chip ${filtro === c.id ? "on" : ""}`} onClick={() => setFiltro(c.id)} role="tab" aria-selected={filtro === c.id}>
+              {c.nombre}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!imagenes ? (
         <div className="masonry">
-          {[220, 300, 260, 200, 280, 240, 310, 230].map((h, i) => <div key={i} className="skeleton tile" style={{ height: h }} />)}
+          {[220, 300, 260, 200, 280, 240, 310, 230].map((h, i) => <div key={i} className="skeleton m-tile" style={{ height: h }} />)}
         </div>
       ) : imagenes.length === 0 ? (
-        <Vacio icono={<Images size={24} />} titulo="Todavía no hay imágenes" texto="Cuando ChatGPT envíe imágenes o las cargues en una campaña, aparecerán aquí." />
+        <Vacio icono={<Images size={24} />} titulo={<>Todavía no hay <em>imágenes</em></>} texto="Cuando ChatGPT envíe imágenes o las cargues en una campaña, aparecerán aquí." />
       ) : (
         <div className="masonry">
           {imagenes.map((img, i) => (
-            <div className="tile" key={img.id} onClick={() => setVisor(i)}>
+            <button className="m-tile" key={img.id} onClick={() => setVisor(i)} aria-label={`Ver imagen ${img.n} de ${img.campana_nombre}`}>
               <img src={img.ruta_miniatura} alt={img.prompt} loading="lazy" style={{ aspectRatio: `${img.ancho} / ${img.alto}` }} />
-              <div className="tile-info">
+              <div className="m-info">
                 <b>{img.campana_nombre}</b> · #{img.n}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

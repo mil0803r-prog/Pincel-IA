@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterator
 
 from . import config, archivos
@@ -111,10 +111,11 @@ def _campana_resumen(con: sqlite3.Connection, r: sqlite3.Row) -> dict:
     total, hechas = con.execute(
         "SELECT COUNT(*), COUNT(imagen_id) FROM prompts WHERE campana_id = ?", (r["id"],)
     ).fetchone()
-    portada = con.execute(
+    portadas = con.execute(
         "SELECT i.* FROM prompts p JOIN imagenes i ON i.id = p.imagen_id "
-        "WHERE p.campana_id = ? ORDER BY p.n LIMIT 1", (r["id"],)
-    ).fetchone()
+        "WHERE p.campana_id = ? ORDER BY p.n LIMIT 4", (r["id"],)
+    ).fetchall()
+    portada = portadas[0] if portadas else None
     return {
         "id": r["id"],
         "nombre": r["nombre"],
@@ -125,6 +126,7 @@ def _campana_resumen(con: sqlite3.Connection, r: sqlite3.Row) -> dict:
         "total": total,
         "hechas": hechas,
         "portada": _imagen_dict(portada),
+        "miniaturas": [f"/i/t/{p['miniatura']}" for p in portadas],
     }
 
 
@@ -326,7 +328,18 @@ def resumen_general() -> dict:
         semana = con.execute(
             "SELECT COUNT(*) FROM imagenes WHERE creado >= datetime('now', '-7 days')"
         ).fetchone()[0]
+        por_dia = dict(con.execute(
+            "SELECT substr(creado, 1, 10), COUNT(*) FROM imagenes "
+            "WHERE creado >= date('now', '-13 days') GROUP BY 1"
+        ).fetchall())
+    hoy = datetime.now(timezone.utc).date()
+    actividad = []
+    for i in range(13, -1, -1):
+        d = (hoy - timedelta(days=i)).isoformat()
+        actividad.append({"dia": d, "imagenes": por_dia.get(d, 0)})
     return {
+        "actividad": actividad,
+        "ultimas": listar_imagenes(limite=10),
         "campanas": campanas,
         "imagenes": hechas,
         "pendientes": total - hechas,

@@ -28,7 +28,7 @@ export default function App() {
 
   if (sesion === null) {
     return (
-      <div className="login">
+      <div className="loading">
         <Loader2 className="spin" size={26} />
       </div>
     );

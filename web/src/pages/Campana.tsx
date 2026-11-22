@@ -10,14 +10,16 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Pencil,
+  Plus,
   RefreshCw,
+  Sparkles,
   Trash2,
   Upload,
   UploadCloud,
   X,
 } from "lucide-react";
 import { api, fecha, urlPublica, type Campana as TCampana, type Prompt } from "../api";
-import { Cabecera, Confirmar, Estado, Menu, Modal, Progreso, useCopiar, useToast } from "../components/ui";
+import { Anillo, Confirmar, Estado, Menu, Modal, useCopiar, useToast } from "../components/ui";
 import Lightbox from "../components/Lightbox";
 
 type Dialogo =
@@ -113,14 +115,19 @@ export default function Campana() {
 
   if (error) {
     return (
-      <div className="card empty">
-        <h2>No se pudo abrir la campaña</h2>
+      <div className="glass empty">
+        <h2>No se pudo abrir la <em>campaña</em></h2>
         <p className="muted">{error}</p>
         <Link to="/campanas" className="btn">Volver a campañas</Link>
       </div>
     );
   }
-  if (!c) return <div className="skeleton" style={{ height: 420 }} />;
+  if (!c) return (
+    <div className="stack gap-16">
+      <div className="skeleton" style={{ height: 190 }} />
+      <div className="grid-slots">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 330 }} />)}</div>
+    </div>
+  );
 
   const conImagen = c.prompts.filter((p) => p.imagen);
   const frase = `Trae la campaña ${c.nombre} de Pincel IA y crea las imágenes`;
@@ -128,48 +135,57 @@ export default function Campana() {
 
   return (
     <>
-      <Cabecera
-        migas={<><Link to="/campanas">Campañas</Link><ChevronRight size={14} /><span className="ellipsis">{c.nombre}</span></>}
-        titulo={c.nombre}
-        subtitulo={
-          <span className="row wrap gap-8">
-            <Estado hechas={c.hechas} total={c.total} />
-            <span>{c.hechas} de {c.total} imágenes</span>
-            <span className="subtle">·</span>
-            <span>Creada {fecha(c.creado)}{c.origen === "claude" ? " por Claude" : ""}</span>
-          </span>
-        }
-      >
-        <button className="btn primary" onClick={() => copiar(frase, "Frase copiada: pégala en ChatGPT")}>
-          <MessageSquareText size={16} /> Copiar para ChatGPT
-        </button>
-        <a className={`btn ${c.hechas ? "" : "disabled"}`} href={c.hechas ? `/api/campanas/${c.id}/zip` : undefined} aria-disabled={!c.hechas}>
-          <Download size={16} /> ZIP
-        </a>
-        <Menu boton={(abrir) => <button className="btn icon" onClick={abrir} aria-label="Más opciones"><MoreHorizontal size={18} /></button>}>
-          {(cerrar) => (
-            <>
-              <button onClick={() => { cerrar(); copiar(todos, "Prompts copiados"); }}><Copy size={16} /> Copiar todos los prompts</button>
-              <button onClick={() => { cerrar(); setDialogo({ tipo: "editar" }); }}><Pencil size={16} /> Editar nombre y notas</button>
-              <button onClick={() => { cerrar(); setDialogo({ tipo: "agregar" }); }}><ListPlus size={16} /> Agregar prompts</button>
-              <hr />
-              <button className="danger" onClick={() => { cerrar(); setDialogo({ tipo: "eliminar" }); }}><Trash2 size={16} /> Eliminar campaña</button>
-            </>
-          )}
-        </Menu>
-      </Cabecera>
-
-      <div className="stack gap-12">
-        <Progreso hechas={c.hechas} total={c.total} />
-        {c.notas && <div className="callout info"><Pencil size={16} /><span><b>Notas de estilo:</b> {c.notas}</span></div>}
-        <div className="dropzone" onClick={() => elegir()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && elegir()}>
-          <span className="dropzone-icon">{subiendo ? <Loader2 size={20} className="spin" /> : <UploadCloud size={20} />}</span>
-          <div className="stack gap-4 grow">
-            <b>{subiendo ? "Subiendo imágenes…" : "Arrastra aquí las imágenes de ChatGPT"}</b>
-            <span className="muted small">Puedes soltar varias a la vez: se acomodan en orden en los puestos vacíos. O suelta cada una en su tarjeta.</span>
+      <section className="cover">
+        {c.portada && <div className="cover-bg" style={{ backgroundImage: `url(${c.portada.ruta_miniatura})` }} />}
+        <div className="cover-in">
+          <div className="stack gap-12" style={{ minWidth: 0, flex: "1 1 360px" }}>
+            <div className="crumbs"><Link to="/campanas">Campañas</Link><ChevronRight size={14} /><span className="ellipsis">{c.nombre}</span></div>
+            <h1>{c.nombre}</h1>
+            <div className="cover-meta">
+              <Estado hechas={c.hechas} total={c.total} />
+              <span>Creada {fecha(c.creado)}{c.origen === "claude" ? " por Claude" : ""}</span>
+              {c.hechas < c.total && <span className="row gap-6"><Sparkles size={13} /> Se actualiza sola mientras llegan imágenes</span>}
+            </div>
           </div>
-          <span className="btn sm" aria-hidden><Upload size={14} /> Elegir archivos</span>
+          <div className="cover-right">
+            <div className="row gap-12">
+              <Anillo hechas={c.hechas} total={c.total} size={64} grosor={5} />
+              <div className="stack">
+                <span className="big" style={{ fontSize: 28 }}>{c.hechas}<span className="subtle" style={{ fontSize: 18 }}> / {c.total}</span></span>
+                <span className="subtle small">imágenes</span>
+              </div>
+            </div>
+            <div className="row gap-8">
+              <button className="btn glow" onClick={() => copiar(frase, "Frase copiada: pégala en ChatGPT")}>
+                <MessageSquareText size={16} /> Copiar para ChatGPT
+              </button>
+              <a className={`btn icon ${c.hechas ? "" : "disabled"}`} href={c.hechas ? `/api/campanas/${c.id}/zip` : undefined} aria-disabled={!c.hechas} title="Descargar ZIP" aria-label="Descargar ZIP">
+                <Download size={16} />
+              </a>
+              <Menu boton={(abrir) => <button className="btn icon" onClick={abrir} aria-label="Más opciones"><MoreHorizontal size={18} /></button>}>
+                {(cerrar) => (
+                  <>
+                    <button onClick={() => { cerrar(); copiar(todos, "Prompts copiados"); }}><Copy size={16} /> Copiar todos los prompts</button>
+                    <button onClick={() => { cerrar(); setDialogo({ tipo: "editar" }); }}><Pencil size={16} /> Editar nombre y notas</button>
+                    <button onClick={() => { cerrar(); setDialogo({ tipo: "agregar" }); }}><ListPlus size={16} /> Agregar prompts</button>
+                    <hr />
+                    <button className="danger" onClick={() => { cerrar(); setDialogo({ tipo: "eliminar" }); }}><Trash2 size={16} /> Eliminar campaña</button>
+                  </>
+                )}
+              </Menu>
+            </div>
+          </div>
         </div>
+      </section>
+
+      {c.notas && <div className="notes"><Pencil size={15} /><span><b>Notas de estilo:</b> {c.notas}</span></div>}
+      <div className="dropzone" onClick={() => elegir()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && elegir()}>
+        <span className="dropzone-icon">{subiendo ? <Loader2 size={20} className="spin" /> : <UploadCloud size={20} />}</span>
+        <div className="stack gap-4 grow">
+          <b>{subiendo ? "Subiendo imágenes…" : "Arrastra aquí las imágenes de ChatGPT"}</b>
+          <span className="muted small hide-sm">Suelta varias a la vez y se acomodan en orden en los puestos vacíos, o suelta cada una en su tarjeta.</span>
+        </div>
+        <span className="btn sm" aria-hidden><Upload size={14} /> Elegir archivos</span>
       </div>
 
       <input
@@ -183,7 +199,7 @@ export default function Campana() {
         }}
       />
 
-      <div className="grid-slots">
+      <div className="grid-slots stagger">
         {c.prompts.map((p) => (
           <Slot
             key={p.n}
@@ -198,7 +214,7 @@ export default function Campana() {
       </div>
 
       {arrastrando && (
-        <div className="drag-overlay"><div><UploadCloud size={20} /> Suelta las imágenes para cargarlas</div></div>
+        <div className="drag-overlay"><div><span className="dropzone-icon"><UploadCloud size={22} /></span>Suelta las imágenes para cargarlas</div></div>
       )}
 
       {visor !== null && (
@@ -259,33 +275,36 @@ function Slot({
     onDrop: (e: React.DragEvent) => { e.preventDefault(); setEncima(false); onSoltar([...e.dataTransfer.files]); },
   };
   return (
-    <div className="card slot" data-slot={p.n} {...eventos}>
+    <div className="glass slot" data-slot={p.n} {...eventos}>
       <div className="slot-media">
         {p.imagen ? (
-          <img src={p.imagen.ruta_miniatura} alt={`Imagen ${p.n}`} loading="lazy" onClick={onVer} />
+          <>
+            <img src={p.imagen.ruta_miniatura} alt={`Imagen ${p.n}`} loading="lazy" onClick={onVer} />
+            <div className="slot-tools">
+              <button title="Copiar link público" aria-label="Copiar link" onClick={() => copiar(urlPublica(p.imagen!.ruta), "Link copiado")}><Link2 size={15} /></button>
+              <a title="Descargar" aria-label="Descargar" href={p.imagen.ruta} download><Download size={15} /></a>
+              <button title="Reemplazar imagen" aria-label="Reemplazar imagen" onClick={onElegir}><RefreshCw size={15} /></button>
+              <button title="Quitar imagen" aria-label="Quitar imagen" onClick={onQuitar}><X size={15} /></button>
+            </div>
+          </>
         ) : (
           <button className={`slot-empty ${encima ? "over" : ""}`} onClick={onElegir}>
-            <UploadCloud size={26} strokeWidth={1.6} />
-            <span className="small">Suelta aquí la imagen {p.n}<br />o haz clic para elegirla</span>
+            <span className="plus"><Plus size={20} /></span>
+            <span className="small">Suelta la imagen {p.n}<br />o haz clic para elegirla</span>
           </button>
         )}
-        <span className="slot-num">#{p.n}</span>
+        <span className={`badge ${p.imagen ? "onimg" : ""} slot-num`}>#{p.n}</span>
       </div>
       <div className="slot-body">
         <p className={`slot-prompt ${abierto ? "open" : ""}`} onClick={() => setAbierto(!abierto)} title="Clic para ver completo">
           {p.texto}
         </p>
-        <div className="slot-actions">
-          <button className="btn ghost icon sm" title="Copiar prompt" aria-label="Copiar prompt" onClick={() => copiar(p.texto, "Prompt copiado")}><Copy size={15} /></button>
-          <button className="btn ghost icon sm" title="Editar prompt" aria-label="Editar prompt" onClick={onEditar}><Pencil size={15} /></button>
-          {p.imagen && (
-            <>
-              <button className="btn ghost icon sm" title="Copiar link público" aria-label="Copiar link" onClick={() => copiar(urlPublica(p.imagen!.ruta), "Link copiado")}><Link2 size={15} /></button>
-              <a className="btn ghost icon sm" title="Descargar" aria-label="Descargar" href={p.imagen.ruta} download><Download size={15} /></a>
-              <button className="btn ghost icon sm" title="Reemplazar imagen" aria-label="Reemplazar imagen" onClick={onElegir}><RefreshCw size={15} /></button>
-              <button className="btn ghost icon sm" title="Quitar imagen" aria-label="Quitar imagen" onClick={onQuitar}><X size={15} /></button>
-            </>
-          )}
+        <div className="slot-foot">
+          <span className="subtle small">{p.imagen ? (p.imagen.origen === "chatgpt" ? "Desde ChatGPT" : "Subida") : "Esperando imagen"}</span>
+          <div className="row gap-4">
+            <button className="icon-btn" title="Copiar prompt" aria-label="Copiar prompt" onClick={() => copiar(p.texto, "Prompt copiado")}><Copy size={15} /></button>
+            <button className="icon-btn" title="Editar prompt" aria-label="Editar prompt" onClick={onEditar}><Pencil size={15} /></button>
+          </div>
         </div>
       </div>
     </div>
@@ -325,7 +344,7 @@ function EditarCampana({ c, onListo, onCerrar }: { c: TCampana; onListo: (c: TCa
   const [notas, setNotas] = useState(c.notas);
   const { ocupado, error, guardar } = useGuardar(() => api.editarCampana(c.id, { nombre, notas }), onListo);
   return (
-    <Modal titulo="Editar campaña" onCerrar={onCerrar} pie={<Pie ocupado={ocupado} onCerrar={onCerrar} onGuardar={guardar} deshabilitado={!nombre.trim()} />}>
+    <Modal titulo={<>Editar <em>campaña</em></>} onCerrar={onCerrar} pie={<Pie ocupado={ocupado} onCerrar={onCerrar} onGuardar={guardar} deshabilitado={!nombre.trim()} />}>
       <div className="field">
         <label htmlFor="ec-n">Nombre</label>
         <input id="ec-n" className="input" value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
@@ -343,7 +362,7 @@ function AgregarPrompts({ c, onListo, onCerrar }: { c: TCampana; onListo: (c: TC
   const [texto, setTexto] = useState("");
   const { ocupado, error, guardar } = useGuardar(() => api.agregarPrompts(c.id, texto), onListo);
   return (
-    <Modal titulo="Agregar prompts" descripcion={`Se añadirán a partir del #${c.total + 1}.`} onCerrar={onCerrar} pie={<Pie ocupado={ocupado} onCerrar={onCerrar} onGuardar={guardar} texto="Agregar" deshabilitado={!texto.trim()} />}>
+    <Modal titulo={<>Agregar <em>prompts</em></>} descripcion={`Se añadirán a partir del #${c.total + 1}.`} onCerrar={onCerrar} pie={<Pie ocupado={ocupado} onCerrar={onCerrar} onGuardar={guardar} texto="Agregar" deshabilitado={!texto.trim()} />}>
       <div className="field">
         <label htmlFor="ap-t">Prompts</label>
         <textarea id="ap-t" className="textarea" rows={7} value={texto} onChange={(e) => setTexto(e.target.value)} autoFocus />
@@ -358,7 +377,7 @@ function EditarPrompt({ c, p, onListo, onCerrar }: { c: TCampana; p: Prompt; onL
   const [texto, setTexto] = useState(p.texto);
   const { ocupado, error, guardar } = useGuardar(() => api.editarPrompt(c.id, p.n, texto), onListo);
   return (
-    <Modal titulo={`Prompt #${p.n}`} onCerrar={onCerrar} ancho={640} pie={<Pie ocupado={ocupado} onCerrar={onCerrar} onGuardar={guardar} deshabilitado={!texto.trim()} />}>
+    <Modal titulo={<>Prompt <em>#{p.n}</em></>} onCerrar={onCerrar} ancho={640} pie={<Pie ocupado={ocupado} onCerrar={onCerrar} onGuardar={guardar} deshabilitado={!texto.trim()} />}>
       <textarea className="textarea" rows={10} value={texto} onChange={(e) => setTexto(e.target.value)} autoFocus aria-label="Texto del prompt" />
       {error && <span className="error-text">{error}</span>}
     </Modal>

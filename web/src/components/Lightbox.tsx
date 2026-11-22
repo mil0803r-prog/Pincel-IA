@@ -59,7 +59,7 @@ export default function Lightbox({
       <aside className="lb-side">
         <div className="stack gap-4">
           <span className="small muted">{indice + 1} de {items.length}</span>
-          <h2>{item.titulo}</h2>
+          <h2 style={{ fontSize: 20 }}>{item.titulo}</h2>
         </div>
         <div className="row gap-8 wrap">
           <button className="btn primary sm" onClick={() => copiar(urlPublica(imagen.ruta), "Link copiado")}>

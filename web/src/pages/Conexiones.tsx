@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Copy, Eye, EyeOff, Info, ShieldAlert } from "lucide-react";
+import { Copy, Eye, EyeOff, Info, ShieldCheck } from "lucide-react";
 import { api } from "../api";
-import { Cabecera, useCopiar } from "../components/ui";
+import { Cabecera, Logo, useCopiar } from "../components/ui";
 
 const FRASES = [
   { donde: "Claude", texto: "Genera los prompts de imagen de la campaña y guárdalos en Pincel IA como «nombre de la campaña»." },
@@ -20,49 +20,53 @@ export default function Conexiones() {
     api.conexion().then((d) => setUrl(d.url_mcp)).catch(() => {});
   }, []);
 
-  const oculta = url.replace(/\/([^/]+)\/mcp$/, (_, t: string) => `/${"•".repeat(Math.min(t.length, 16))}/mcp`);
+  const oculta = url.replace(/\/([^/]+)\/mcp$/, (_, t: string) => `/${"•".repeat(Math.min(t.length, 18))}/mcp`);
   const comandoClaude = `claude mcp add --transport http pincel-ia ${url}`;
 
   return (
     <>
-      <Cabecera titulo="Conexiones" subtitulo="Conecta ChatGPT y Claude con Pincel IA" />
+      <Cabecera titulo={<>Conexiones</>} subtitulo="Conecta ChatGPT y Claude con tu estudio" />
 
-      <div className="card">
-        <div className="card-head">
-          <div className="stack gap-4">
-            <h2>URL del conector</h2>
-            <p className="muted small">La misma dirección sirve para ChatGPT y para Claude.</p>
+      <section className="glass conn-hero">
+        <div className="row between wrap gap-16">
+          <div className="stack gap-6">
+            <span className="eyebrow">Conector MCP</span>
+            <h2 style={{ fontSize: 22 }}>Una dirección, <em>dos asistentes</em></h2>
+            <p className="muted small">La misma URL sirve para ChatGPT y para Claude.</p>
+          </div>
+          <div className="logos" aria-hidden>
+            <span className="logo-chip">GPT</span>
+            <span className="link-line" />
+            <Logo size={46} />
+            <span className="link-line" />
+            <span className="logo-chip">Claude</span>
           </div>
         </div>
-        <div className="card-pad stack gap-12">
-          <div className="copybox">
-            <code>{url ? (ver ? url : oculta) : "Cargando…"}</code>
-            <button className="btn ghost icon sm" onClick={() => setVer(!ver)} aria-label={ver ? "Ocultar" : "Mostrar"}>
-              {ver ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-            <button className="btn sm" disabled={!url} onClick={() => copiar(url, "URL copiada")}>
-              <Copy size={14} /> Copiar
-            </button>
-          </div>
-          <div className="callout">
-            <ShieldAlert size={18} />
-            <p className="small">
-              Esta URL incluye tu clave secreta: quien la tenga puede usar el conector. No la compartas ni la publiques.
-            </p>
-          </div>
+        <div className="copybox">
+          <code>{url ? (ver ? url : oculta) : "Cargando…"}</code>
+          <button className="icon-btn" onClick={() => setVer(!ver)} aria-label={ver ? "Ocultar" : "Mostrar"} title={ver ? "Ocultar" : "Mostrar"}>
+            {ver ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+          <button className="btn primary sm" disabled={!url} onClick={() => copiar(url, "URL copiada")}>
+            <Copy size={14} /> Copiar
+          </button>
         </div>
-      </div>
+        <div className="row gap-8 small muted">
+          <ShieldCheck size={15} style={{ color: "var(--success)", flexShrink: 0 }} />
+          Incluye tu clave secreta: quien tenga esta URL puede usar el conector. No la compartas.
+        </div>
+      </section>
 
       <div className="two-col section">
-        <div className="card">
+        <section className="glass">
           <div className="card-head">
-            <h2>Cómo conectar</h2>
+            <h2>Cómo <em>conectar</em></h2>
             <div className="tabs" role="tablist">
               <button className={`tab ${tab === "chatgpt" ? "active" : ""}`} onClick={() => setTab("chatgpt")} role="tab" aria-selected={tab === "chatgpt"}>ChatGPT</button>
               <button className={`tab ${tab === "claude" ? "active" : ""}`} onClick={() => setTab("claude")} role="tab" aria-selected={tab === "claude"}>Claude</button>
             </div>
           </div>
-          <div className="card-pad">
+          <div className="pad">
             {tab === "chatgpt" ? (
               <ol className="steps">
                 <li><span>En ChatGPT abre <b>Configuración → Aplicaciones y conectores → Configuración avanzada</b> y activa el <b>Modo desarrollador</b>. Requiere plan Plus, Pro o Business.</span></li>
@@ -78,7 +82,7 @@ export default function Conexiones() {
                     <span><b>Claude Code:</b> ejecuta en la terminal:</span>
                     <div className="copybox">
                       <code>{ver ? comandoClaude : comandoClaude.replace(url, oculta)}</code>
-                      <button className="btn sm" disabled={!url} onClick={() => copiar(comandoClaude, "Comando copiado")}><Copy size={14} /></button>
+                      <button className="icon-btn" disabled={!url} onClick={() => copiar(comandoClaude, "Comando copiado")} aria-label="Copiar comando"><Copy size={15} /></button>
                     </div>
                   </div>
                 </li>
@@ -86,31 +90,31 @@ export default function Conexiones() {
               </ol>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="card">
-          <div className="card-head"><h2>Frases útiles</h2></div>
-          <div className="card-pad stack gap-8">
+        <section className="glass">
+          <div className="card-head"><h2>Frases <em>útiles</em></h2></div>
+          <div className="pad stack gap-8">
             {FRASES.map((f) => (
               <div className="phrase" key={f.texto}>
-                <div className="stack gap-4 grow">
-                  <span className={`badge ${f.donde === "ChatGPT" ? "success" : "accent"}`} style={{ alignSelf: "flex-start" }}>{f.donde}</span>
+                <div className="stack gap-6 grow">
+                  <span className={`badge ${f.donde === "ChatGPT" ? "success" : "accent"}`} style={{ alignSelf: "flex-start" }}><span className="dot" />{f.donde}</span>
                   <span className="small">{f.texto}</span>
                 </div>
-                <button className="btn ghost icon sm" onClick={() => copiar(f.texto)} aria-label="Copiar frase"><Copy size={15} /></button>
+                <button className="icon-btn" onClick={() => copiar(f.texto)} aria-label="Copiar frase"><Copy size={15} /></button>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
 
       <div className="callout info section">
         <Info size={18} />
         <div className="stack gap-4 small">
           <b>Si ChatGPT no logra enviar las imágenes</b>
-          <span>
+          <span className="muted">
             ChatGPT crea las imágenes una por una. Si al decir “Enviar a la plataforma” no puede adjuntarlas, te dará el link de la campaña:
-            descárgalas de ChatGPT y arrástralas todas juntas en la campaña. Se acomodan solas en orden.
+            descárgalas de ChatGPT y arrástralas todas juntas. Se acomodan solas en orden.
           </span>
         </div>
       </div>

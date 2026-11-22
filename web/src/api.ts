@@ -25,6 +25,7 @@ export type CampanaResumen = {
   total: number;
   hechas: number;
   portada: Imagen | null;
+  miniaturas: string[];
 };
 
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
@@ -37,6 +38,8 @@ export type Resumen = {
   imagenes_semana: number;
   bytes: number;
   recientes: CampanaResumen[];
+  actividad: { dia: string; imagenes: number }[];
+  ultimas: Imagen[];
 };
 
 export class ApiError extends Error {

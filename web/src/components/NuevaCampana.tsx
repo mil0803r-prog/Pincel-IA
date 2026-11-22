@@ -29,14 +29,14 @@ export default function NuevaCampana({ onCerrar }: { onCerrar: () => void }) {
 
   return (
     <Modal
-      titulo="Nueva campaña"
+      titulo={<>Nueva <em>campaña</em></>}
       descripcion="Normalmente Claude la crea por ti; aquí puedes hacerlo a mano."
       onCerrar={onCerrar}
       ancho={620}
       pie={
         <>
           <button className="btn" onClick={onCerrar}>Cancelar</button>
-          <button className="btn primary" disabled={ocupado || !nombre.trim() || detectados === 0} onClick={crear}>
+          <button className="btn glow" disabled={ocupado || !nombre.trim() || detectados === 0} onClick={crear}>
             {ocupado && <Loader2 size={16} className="spin" />} Crear campaña
           </button>
         </>
@@ -58,7 +58,7 @@ export default function NuevaCampana({ onCerrar }: { onCerrar: () => void }) {
           onChange={(e) => setPrompts(e.target.value)}
         />
         <span className="hint">
-          Separa cada prompt con una línea en blanco o numéralos. {detectados > 0 && <b>{detectados} detectados.</b>}
+          Separa cada prompt con una línea en blanco o numéralos. {detectados > 0 && <span className="badge accent" style={{ height: 20, marginLeft: 4 }}>{detectados} detectados</span>}
         </span>
       </div>
       <div className="field">

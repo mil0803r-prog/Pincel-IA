@@ -5,7 +5,7 @@ import "./styles.css";
 
 try {
   const t = localStorage.getItem("pincel-tema");
-  if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
 } catch { /* sin almacenamiento */ }
 
 createRoot(document.getElementById("root")!).render(
