@@ -543,3 +543,6 @@ em, .serif { font-family: var(--serif); font-style: italic; font-weight: 400; le
 }
 .hero-actions { grid-column: 1 / -1; }
 .hero-stack { grid-row: 1; }
+
+/* rendimiento con campañas muy grandes: solo se pinta lo visible */
+.slot { content-visibility: auto; contain-intrinsic-size: auto 360px; }

@@ -150,7 +150,7 @@ async def prompt(request: Request) -> Response:
 async def subir(request: Request) -> Response:
     cid = request.path_params["cid"]
     try:
-        form = await request.form(max_files=100, max_part_size=config.MAX_BYTES)
+        form = await request.form(max_files=1000, max_part_size=config.MAX_BYTES)
         n = form.get("n")
         lista = form.getlist("archivo")
         if not lista:
@@ -181,7 +181,14 @@ async def quitar_imagen(request: Request) -> Response:
 @auth.requiere_sesion
 async def imagenes(request: Request) -> Response:
     cid = request.query_params.get("campana") or None
-    return JSONResponse(await asyncio.to_thread(db.listar_imagenes, cid))
+    try:
+        desde = max(0, int(request.query_params.get("desde", 0)))
+        limite = min(200, max(1, int(request.query_params.get("limite", 60))))
+    except ValueError:
+        return _error(db.Invalido("Parámetros inválidos."))
+    lista = await asyncio.to_thread(db.listar_imagenes, cid, limite, desde)
+    total = await asyncio.to_thread(db.contar_imagenes, cid)
+    return JSONResponse({"imagenes": lista, "total": total, "siguiente": desde + len(lista) if desde + len(lista) < total else None})
 
 
 @auth.requiere_sesion

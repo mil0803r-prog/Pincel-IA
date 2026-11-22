@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Images } from "lucide-react";
 import { api, type CampanaResumen, type Imagen } from "../api";
 import { Cabecera, Vacio } from "../components/ui";
@@ -9,18 +10,42 @@ export default function Biblioteca() {
   const [campanas, setCampanas] = useState<CampanaResumen[]>([]);
   const [filtro, setFiltro] = useState("");
   const [visor, setVisor] = useState<number | null>(null);
+  const [total, setTotal] = useState(0);
+  const [siguiente, setSiguiente] = useState<number | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const centinela = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.campanas().then((cs) => setCampanas(cs.filter((c) => c.hechas > 0))).catch(() => {});
   }, []);
   useEffect(() => {
     setImagenes(null);
-    api.imagenes(filtro || undefined).then(setImagenes).catch(() => setImagenes([]));
+    api.imagenes(filtro || undefined).then((r) => { setImagenes(r.imagenes); setTotal(r.total); setSiguiente(r.siguiente); }).catch(() => setImagenes([]));
   }, [filtro]);
+
+  // carga infinita: trae más al acercarse al final
+  const masImagenes = useCallback(async () => {
+    if (siguiente === null || cargando) return;
+    setCargando(true);
+    try {
+      const r = await api.imagenes(filtro || undefined, siguiente);
+      setImagenes((prev) => [...(prev || []), ...r.imagenes]);
+      setSiguiente(r.siguiente);
+    } finally {
+      setCargando(false);
+    }
+  }, [siguiente, cargando, filtro]);
+  useEffect(() => {
+    const el = centinela.current;
+    if (!el) return;
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && masImagenes(), { rootMargin: "800px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [masImagenes]);
 
   return (
     <>
-      <Cabecera titulo={<>Biblioteca</>} subtitulo={imagenes ? `${imagenes.length} imágenes listas para usar` : "Todas tus imágenes en un solo lugar"} />
+      <Cabecera titulo={<>Biblioteca</>} subtitulo={imagenes ? `${total} ${total === 1 ? "imagen lista" : "imágenes listas"} para usar` : "Todas tus imágenes en un solo lugar"} />
 
       {campanas.length > 0 && (
         <div className="chips" role="tablist">
@@ -51,6 +76,8 @@ export default function Biblioteca() {
           ))}
         </div>
       )}
+      <div ref={centinela} style={{ height: 1 }} />
+      {cargando && <div className="row" style={{ justifyContent: "center", padding: 20 }}><Loader2 className="spin" size={20} /></div>}
 
       {visor !== null && imagenes && (
         <Lightbox

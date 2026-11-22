@@ -139,8 +139,6 @@ def crear_campana(nombre: str, prompts: list[str], notas: str = "", origen: str 
         raise Invalido("La campaña necesita un nombre.")
     if not prompts:
         raise Invalido("La campaña necesita al menos un prompt.")
-    if len(prompts) > 100:
-        raise Invalido("Máximo 100 prompts por campaña.")
     cid, t = nuevo_id(), ahora()
     with conexion() as con:
         con.execute(
@@ -154,7 +152,7 @@ def crear_campana(nombre: str, prompts: list[str], notas: str = "", origen: str 
     return obtener_campana(cid)
 
 
-def listar_campanas(buscar: str = "", limite: int = 200) -> list[dict]:
+def listar_campanas(buscar: str = "", limite: int = 100000) -> list[dict]:
     with conexion() as con:
         if buscar:
             filas = con.execute(
@@ -307,7 +305,7 @@ def quitar_imagen(cid: str, n: int) -> dict:
     return obtener_campana(cid)
 
 
-def listar_imagenes(cid: str | None = None, limite: int = 500) -> list[dict]:
+def listar_imagenes(cid: str | None = None, limite: int = 60, desde: int = 0) -> list[dict]:
     with conexion() as con:
         sql = ("SELECT i.*, c.nombre AS campana_nombre, p.texto AS prompt FROM imagenes i "
                "JOIN campanas c ON c.id = i.campana_id "
@@ -316,8 +314,28 @@ def listar_imagenes(cid: str | None = None, limite: int = 500) -> list[dict]:
         if cid:
             sql += "WHERE i.campana_id = ? "
             args = (cid,)
-        filas = con.execute(sql + "ORDER BY i.creado DESC LIMIT ?", (*args, limite)).fetchall()
+        filas = con.execute(sql + "ORDER BY i.creado DESC, i.id LIMIT ? OFFSET ?", (*args, limite, max(0, desde))).fetchall()
         return [{**_imagen_dict(f), "campana_nombre": f["campana_nombre"], "prompt": f["prompt"]} for f in filas]
+
+
+def prompts_pendientes(cid: str, cantidad: int) -> tuple[list[dict], int]:
+    """Los siguientes `cantidad` prompts sin imagen (en orden) y cuántos faltan en total."""
+    with conexion() as con:
+        faltan = con.execute(
+            "SELECT COUNT(*) FROM prompts WHERE campana_id = ? AND imagen_id IS NULL", (cid,)
+        ).fetchone()[0]
+        filas = con.execute(
+            "SELECT n, texto FROM prompts WHERE campana_id = ? AND imagen_id IS NULL ORDER BY n LIMIT ?",
+            (cid, max(1, cantidad)),
+        ).fetchall()
+    return [{"n": f["n"], "texto": f["texto"]} for f in filas], faltan
+
+
+def contar_imagenes(cid: str | None = None) -> int:
+    with conexion() as con:
+        if cid:
+            return con.execute("SELECT COUNT(*) FROM imagenes WHERE campana_id = ?", (cid,)).fetchone()[0]
+        return con.execute("SELECT COUNT(*) FROM imagenes").fetchone()[0]
 
 
 def resumen_general() -> dict:

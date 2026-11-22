@@ -7,6 +7,8 @@ const FRASES = [
   { donde: "Claude", texto: "Genera los prompts de imagen de la campaña y guárdalos en Pincel IA como «nombre de la campaña»." },
   { donde: "ChatGPT", texto: "Trae la campaña «nombre de la campaña» de Pincel IA y crea las imágenes." },
   { donde: "ChatGPT", texto: "Enviar a la plataforma." },
+  { donde: "ChatGPT", texto: "Trae el siguiente lote de la campaña y continúa hasta terminar todas, enviando cada lote a la plataforma." },
+  { donde: "Claude", texto: "Agrega estos prompts nuevos a la campaña «nombre de la campaña» en Pincel IA." },
   { donde: "Claude", texto: "Trae los links de las imágenes de la campaña «nombre de la campaña»." },
 ];
 

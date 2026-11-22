@@ -34,7 +34,8 @@ export default function Campana() {
   const { id = "" } = useParams();
   const [c, setC] = useState<TCampana | null>(null);
   const [error, setError] = useState("");
-  const [subiendo, setSubiendo] = useState(false);
+  const [subiendo, setSubiendo] = useState<{ hechas: number; total: number } | null>(null);
+  const [vista, setVista] = useState<"todas" | "faltan" | "listas">("todas");
   const [arrastrando, setArrastrando] = useState(false);
   const [visor, setVisor] = useState<number | null>(null);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
@@ -64,16 +65,31 @@ export default function Campana() {
         .filter((f) => f.type.startsWith("image/"))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       if (!imgs.length) return toast("Solo se aceptan imágenes", "error");
-      setSubiendo(true);
+      // en tandas de 8 para soportar cualquier cantidad de archivos y mostrar el avance
+      const TANDA = 8;
+      let subidas = 0;
+      const errores: { archivo: string; error: string }[] = [];
+      setSubiendo({ hechas: 0, total: imgs.length });
       try {
-        const r = await api.subirImagenes(id, imgs, n);
-        if (r.subidas) toast(r.subidas === 1 ? "Imagen cargada" : `${r.subidas} imágenes cargadas`);
-        r.errores.forEach((e) => toast(`${e.archivo}: ${e.error}`, "error"));
+        for (let i = 0; i < imgs.length; i += TANDA) {
+          const parte = imgs.slice(i, i + TANDA);
+          try {
+            const r = await api.subirImagenes(id, parte, n ? n + i : undefined);
+            subidas += r.subidas;
+            errores.push(...r.errores);
+          } catch (e) {
+            errores.push({ archivo: `${parte.length} archivos`, error: (e as Error).message });
+            if ((e as Error).message.includes("Todas las imágenes ya están cargadas")) break;
+          }
+          setSubiendo({ hechas: Math.min(i + TANDA, imgs.length), total: imgs.length });
+          if (i + TANDA < imgs.length && (i / TANDA) % 3 === 2) cargar();
+        }
+        if (subidas) toast(subidas === 1 ? "Imagen cargada" : `${subidas} imágenes cargadas`);
+        errores.slice(0, 3).forEach((e) => toast(`${e.archivo}: ${e.error}`, "error"));
+        if (errores.length > 3) toast(`${errores.length - 3} archivos más no se pudieron cargar`, "error");
         await cargar();
-      } catch (e) {
-        toast((e as Error).message, "error");
       } finally {
-        setSubiendo(false);
+        setSubiendo(null);
       }
     },
     [id, cargar, toast],
@@ -130,6 +146,7 @@ export default function Campana() {
   );
 
   const conImagen = c.prompts.filter((p) => p.imagen);
+  const visibles = c.prompts.filter((p) => (vista === "faltan" ? !p.imagen : vista === "listas" ? !!p.imagen : true));
   const frase = `Trae la campaña ${c.nombre} de Pincel IA y crea las imágenes`;
   const todos = c.prompts.map((p) => `Imagen ${p.n}:\n${p.texto}`).join("\n\n");
 
@@ -182,7 +199,7 @@ export default function Campana() {
       <div className="dropzone" onClick={() => elegir()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && elegir()}>
         <span className="dropzone-icon">{subiendo ? <Loader2 size={20} className="spin" /> : <UploadCloud size={20} />}</span>
         <div className="stack gap-4 grow">
-          <b>{subiendo ? "Subiendo imágenes…" : "Arrastra aquí las imágenes de ChatGPT"}</b>
+          <b>{subiendo ? `Subiendo ${subiendo.hechas} de ${subiendo.total}…` : "Arrastra aquí las imágenes de ChatGPT"}</b>
           <span className="muted small hide-sm">Suelta varias a la vez y se acomodan en orden en los puestos vacíos, o suelta cada una en su tarjeta.</span>
         </div>
         <span className="btn sm" aria-hidden><Upload size={14} /> Elegir archivos</span>
@@ -199,8 +216,24 @@ export default function Campana() {
         }}
       />
 
-      <div className="grid-slots stagger">
-        {c.prompts.map((p) => (
+      {subiendo && <div className="progress" style={{ marginTop: 10 }}><div style={{ width: `${(subiendo.hechas / subiendo.total) * 100}%` }} /></div>}
+
+      <div className="row between wrap" style={{ marginTop: 22, gap: 12 }}>
+        <div className="chips" role="tablist" style={{ margin: 0 }}>
+          <button className={`chip ${vista === "todas" ? "on" : ""}`} onClick={() => setVista("todas")} role="tab" aria-selected={vista === "todas"}>Todas · {c.total}</button>
+          <button className={`chip ${vista === "faltan" ? "on" : ""}`} onClick={() => setVista("faltan")} role="tab" aria-selected={vista === "faltan"}>Faltan · {c.total - c.hechas}</button>
+          <button className={`chip ${vista === "listas" ? "on" : ""}`} onClick={() => setVista("listas")} role="tab" aria-selected={vista === "listas"}>Listas · {c.hechas}</button>
+        </div>
+        <button className="btn sm" onClick={() => setDialogo({ tipo: "agregar" })}><Plus size={14} /> Agregar prompts</button>
+      </div>
+
+      {visibles.length === 0 && (
+        <div className="glass empty" style={{ marginTop: 16, padding: 40 }}>
+          <p className="muted">{vista === "faltan" ? "¡No falta ninguna! La campaña está completa." : "Todavía no hay imágenes cargadas."}</p>
+        </div>
+      )}
+      <div className="grid-slots">
+        {visibles.map((p) => (
           <Slot
             key={p.n}
             p={p}

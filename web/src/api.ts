@@ -89,7 +89,11 @@ export const api = {
       body: fd,
     });
   },
-  imagenes: (campana?: string) => pedir<Imagen[]>(`/api/imagenes${campana ? `?campana=${campana}` : ""}`),
+  imagenes: (campana?: string, desde = 0, limite = 60) => {
+    const q = new URLSearchParams({ desde: String(desde), limite: String(limite) });
+    if (campana) q.set("campana", campana);
+    return pedir<{ imagenes: Imagen[]; total: number; siguiente: number | null }>(`/api/imagenes?${q}`);
+  },
 };
 
 /** Separa un bloque de texto en prompts (igual que el servidor): por líneas en blanco o líneas numeradas. */

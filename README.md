@@ -27,6 +27,12 @@ La app está pensada para crecer:
 2. **Datos y API:** añade tablas en `pincel_ia/db.py` y rutas en `pincel_ia/api.py`.
 3. **Herramientas para ChatGPT y Claude:** añádelas en `pincel_ia/conector.py`.
 
+## Sin límite de imágenes
+Una campaña puede tener **cualquier cantidad de prompts e imágenes** (7, 150, 1.000…):
+- **Claude** crea la campaña con todos los prompts y puede seguir agregando más con `agregar_prompts`.
+- **ChatGPT** trabaja **por lotes**: trae los siguientes prompts pendientes, crea esas imágenes, las envía y pide el siguiente lote, hasta que no falte ninguna. Si quieres que lo haga todo seguido, dile: *"continúa con todos los lotes hasta terminar, enviando cada uno a la plataforma"*.
+- **En la app** puedes arrastrar cientos de imágenes de una vez: se suben en tandas y ves el avance. La campaña tiene filtros (Todas / Faltan / Listas) y la biblioteca carga más imágenes a medida que bajas.
+
 ## Lo que tienes que saber
 - **ChatGPT crea las imágenes una por una.** Si se detiene a mitad, dile "continúa". Tu plan tiene un límite de imágenes por periodo.
 - **El envío automático desde ChatGPT puede fallar.** Depende de cómo ChatGPT maneje los archivos, y eso cambia seguido. Si no puede, te da el link de la campaña: descargas las imágenes y las arrastras todas juntas.
@@ -58,8 +64,9 @@ Los pasos están dentro de la app, en **Conexiones**. En resumen:
 
 | Herramienta | Quién la usa | Qué hace |
 |---|---|---|
-| `crear_campana` | Claude | Guarda nombre + todos los prompts (+ notas de estilo). |
-| `obtener_prompts` | ChatGPT | Trae los prompts con instrucciones para crearlos tal cual, en orden. |
+| `crear_campana` | Claude | Guarda nombre + todos los prompts (+ notas de estilo). Sin límite de cantidad. |
+| `agregar_prompts` | Claude | Agrega más prompts al final de una campaña existente. |
+| `obtener_prompts` | ChatGPT | Trae el siguiente **lote** de prompts pendientes (10 por defecto, hasta 25) con instrucciones; se repite hasta terminar. |
 | `subir_imagen` | ChatGPT | Envía una imagen creada a su número en la campaña. |
 | `obtener_imagenes` | Claude | Links públicos de las imágenes y cuáles faltan. |
 | `listar_campanas` | Ambos | Últimas campañas y su avance. |
