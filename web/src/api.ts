@@ -1,4 +1,5 @@
 import { crearApiDemo } from "./demo";
+import { ajustar, fijarLimiteSubida } from "./subida";
 
 export type Imagen = {
   id: string;
@@ -66,7 +67,11 @@ async function pedir<T>(url: string, init: RequestInit = {}): Promise<T> {
 const json = (body: unknown) => JSON.stringify(body);
 
 const apiReal = {
-  sesion: () => pedir<{ autenticado: boolean }>("/api/sesion"),
+  sesion: async () => {
+    const s = await pedir<{ autenticado: boolean; limite_subida?: number }>("/api/sesion");
+    fijarLimiteSubida(s.limite_subida || 0);
+    return s;
+  },
   login: (clave: string) => pedir("/api/login", { method: "POST", body: json({ clave }) }),
   logout: () => pedir("/api/logout", { method: "POST" }),
   resumen: () => pedir<Resumen>("/api/resumen"),
@@ -82,10 +87,15 @@ const apiReal = {
     pedir<Campana>(`/api/campanas/${id}/prompts`, { method: "POST", body: json({ prompts }) }),
   editarPrompt: (id: string, n: number, texto: string) =>
     pedir<Campana>(`/api/campanas/${id}/prompts/${n}`, { method: "PATCH", body: json({ texto }) }),
-  subirReferencias: (id: string, archivos: File[]) => {
-    const fd = new FormData();
-    archivos.forEach((f) => fd.append("archivo", f));
-    return pedir<Campana>(`/api/campanas/${id}/referencias`, { method: "POST", body: fd });
+  /** Cada referencia va en su propia petición: así nunca se pasa del límite de tamaño del servidor. */
+  subirReferencias: async (id: string, archivos: File[]) => {
+    let c!: Campana;
+    for (const f of archivos) {
+      const fd = new FormData();
+      fd.append("archivo", await ajustar(f));
+      c = await pedir<Campana>(`/api/campanas/${id}/referencias`, { method: "POST", body: fd });
+    }
+    return c;
   },
   quitarReferencia: (id: string, rid: string) => pedir<Campana>(`/api/campanas/${id}/referencias/${rid}`, { method: "DELETE" }),
   quitarImagen: (id: string, n: number) => pedir<Campana>(`/api/campanas/${id}/prompts/${n}/imagen`, { method: "DELETE" }),

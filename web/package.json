@@ -10,6 +10,7 @@
     "build:demo": "tsc --noEmit && vite build --mode demo --outDir ../demo-build --emptyOutDir"
   },
   "dependencies": {
+    "fflate": "0.8.3",
     "lucide-react": "1.77.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

@@ -23,6 +23,7 @@ export default function NuevaCampana({ onCerrar }: { onCerrar: () => void }) {
       if (refs.length) await api.subirReferencias(c.id, refs).catch(() => toast("La campaña se creó, pero no se pudo subir el mockup", "error"));
       toast("Campaña creada");
       nav(`/campanas/${c.id}`);
+      onCerrar();
     } catch (e) {
       setError((e as Error).message);
       setOcupado(false);

@@ -22,6 +22,7 @@ import { api, DEMO, fecha, urlPublica, type Campana as TCampana, type Prompt } f
 import { Anillo, Confirmar, Estado, Menu, Modal, useCopiar, useToast } from "../components/ui";
 import Lightbox from "../components/Lightbox";
 import Referencias from "../components/Referencias";
+import { descargarZip, limiteSubida, prepararTandas } from "../subida";
 
 type Dialogo =
   | { tipo: "editar" }
@@ -81,24 +82,27 @@ export default function Campana() {
         .filter((f) => f.type.startsWith("image/"))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       if (!imgs.length) return toast("Solo se aceptan imágenes", "error");
-      // en tandas de 8 para soportar cualquier cantidad de archivos y mostrar el avance
-      const TANDA = 8;
+      // las imágenes se reparten en tandas (y, si el servidor tiene límite de tamaño, se reducen antes de subir)
       let subidas = 0;
       const errores: { archivo: string; error: string }[] = [];
       setSubiendo({ hechas: 0, total: imgs.length });
       try {
-        for (let i = 0; i < imgs.length; i += TANDA) {
-          const parte = imgs.slice(i, i + TANDA);
+        const prep = await prepararTandas(imgs);
+        errores.push(...prep.fallos);
+        let enviadas = 0;
+        for (let t = 0; t < prep.tandas.length; t++) {
+          const parte = prep.tandas[t];
           try {
-            const r = await api.subirImagenes(id, parte, n ? n + i : undefined);
+            const r = await api.subirImagenes(id, parte, n ? n + enviadas : undefined);
             subidas += r.subidas;
             errores.push(...r.errores);
           } catch (e) {
             errores.push({ archivo: `${parte.length} archivos`, error: (e as Error).message });
             if ((e as Error).message.includes("Todas las imágenes ya están cargadas")) break;
           }
-          setSubiendo({ hechas: Math.min(i + TANDA, imgs.length), total: imgs.length });
-          if (i + TANDA < imgs.length && (i / TANDA) % 3 === 2) cargar();
+          enviadas += parte.length;
+          setSubiendo({ hechas: Math.min(enviadas, imgs.length), total: imgs.length });
+          if (t < prep.tandas.length - 1 && t % 3 === 2) cargar();
         }
         if (subidas) toast(subidas === 1 ? "Imagen cargada" : `${subidas} imágenes cargadas`);
         errores.slice(0, 3).forEach((e) => toast(`${e.archivo}: ${e.error}`, "error"));
@@ -197,7 +201,26 @@ export default function Campana() {
               <button className="btn glow" onClick={() => copiar(frase, "Frase copiada: pégala en ChatGPT")}>
                 <MessageSquareText size={16} /> Copiar para ChatGPT
               </button>
-              <a className={`btn icon ${c.hechas ? "" : "disabled"}`} href={c.hechas && !DEMO ? `/api/campanas/${c.id}/zip` : undefined} onClick={DEMO ? () => toast("El ZIP se descarga en la versión publicada") : undefined} aria-disabled={!c.hechas} title="Descargar ZIP" aria-label="Descargar ZIP">
+              <a
+                className={`btn icon ${c.hechas ? "" : "disabled"}`}
+                href={c.hechas && !DEMO && !limiteSubida() ? `/api/campanas/${c.id}/zip` : undefined}
+                onClick={
+                  DEMO
+                    ? () => toast("El ZIP se descarga en la versión publicada")
+                    : limiteSubida()
+                      ? async () => {
+                          try {
+                            await descargarZip(c, (h, t) => h === t || toast(`Preparando ZIP… ${h} de ${t}`));
+                          } catch (e) {
+                            toast((e as Error).message, "error");
+                          }
+                        }
+                      : undefined
+                }
+                aria-disabled={!c.hechas}
+                title="Descargar ZIP"
+                aria-label="Descargar ZIP"
+              >
                 <Download size={16} />
               </a>
               <Menu boton={(abrir) => <button className="btn icon" onClick={abrir} aria-label="Más opciones"><MoreHorizontal size={18} /></button>}>

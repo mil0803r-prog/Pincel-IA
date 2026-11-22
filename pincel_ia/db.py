@@ -1,4 +1,4 @@
-"""Base de datos SQLite de Pincel IA y operaciones sobre campañas e imágenes."""
+"""Base de datos de Pincel IA (SQLite en disco o Postgres en Vercel) y operaciones sobre campañas e imágenes."""
 
 from __future__ import annotations
 
@@ -19,13 +19,6 @@ CREATE TABLE IF NOT EXISTS campanas (
     creado      TEXT NOT NULL,
     actualizado TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS prompts (
-    campana_id TEXT NOT NULL REFERENCES campanas(id) ON DELETE CASCADE,
-    n          INTEGER NOT NULL,
-    texto      TEXT NOT NULL,
-    imagen_id  TEXT REFERENCES imagenes(id) ON DELETE SET NULL,
-    PRIMARY KEY (campana_id, n)
-);
 CREATE TABLE IF NOT EXISTS imagenes (
     id         TEXT PRIMARY KEY,
     campana_id TEXT NOT NULL REFERENCES campanas(id) ON DELETE CASCADE,
@@ -37,6 +30,13 @@ CREATE TABLE IF NOT EXISTS imagenes (
     bytes      INTEGER NOT NULL,
     origen     TEXT NOT NULL,
     creado     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS prompts (
+    campana_id TEXT NOT NULL REFERENCES campanas(id) ON DELETE CASCADE,
+    n          INTEGER NOT NULL,
+    texto      TEXT NOT NULL,
+    imagen_id  TEXT REFERENCES imagenes(id) ON DELETE SET NULL,
+    PRIMARY KEY (campana_id, n)
 );
 CREATE TABLE IF NOT EXISTS referencias (
     id         TEXT PRIMARY KEY,
@@ -52,6 +52,15 @@ CREATE INDEX IF NOT EXISTS idx_imagenes_campana ON imagenes(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_creado ON imagenes(creado);
 """
 
+# Con Postgres (sin disco persistente) los archivos de imagen viven en la propia base de datos.
+ESQUEMA_ARCHIVOS_PG = """
+CREATE TABLE IF NOT EXISTS archivos_bin (
+    clave TEXT PRIMARY KEY,
+    tipo  TEXT NOT NULL,
+    datos BYTEA NOT NULL
+);
+"""
+
 
 def ahora() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -61,7 +70,69 @@ def nuevo_id(largo: int = 10) -> str:
     return secrets.token_urlsafe(largo).replace("-", "x").replace("_", "y")[:largo + 2]
 
 
-def _conectar() -> sqlite3.Connection:
+class Fila(tuple):
+    """Fila de resultados: se lee por posición (fila[0]) o por nombre (fila["id"]), igual que sqlite3.Row."""
+
+    _nombres: dict
+
+    def __new__(cls, valores, nombres):
+        f = super().__new__(cls, valores)
+        indice: dict = {}
+        for i, n in enumerate(nombres):
+            indice.setdefault(n, i)  # con columnas repetidas (p.n, i.n) gana la primera, como en SQLite
+        f._nombres = indice
+        return f
+
+    def __getitem__(self, k):
+        if isinstance(k, str):
+            return tuple.__getitem__(self, self._nombres[k])
+        return tuple.__getitem__(self, k)
+
+    def keys(self):
+        return list(self._nombres)
+
+
+class _ConexionPG:
+    """Envoltorio de psycopg con la misma interfaz que usa el resto del módulo (placeholders '?')."""
+
+    def __init__(self, con):
+        self._con = con
+
+    def _sql(self, sql: str) -> str:
+        return sql.replace("?", "%s")
+
+    def execute(self, sql: str, params=()):
+        cur = self._con.cursor()
+        cur.execute(self._sql(sql), params)
+        return cur
+
+    def executemany(self, sql: str, filas):
+        cur = self._con.cursor()
+        cur.executemany(self._sql(sql), filas)
+        return cur
+
+    def commit(self):
+        self._con.commit()
+
+    def rollback(self):
+        self._con.rollback()
+
+    def close(self):
+        self._con.close()
+
+
+def _fabrica_filas(cursor):
+    nombres = [d.name for d in cursor.description] if cursor.description else []
+    return lambda valores: Fila(valores, nombres)
+
+
+def _conectar():
+    if config.USA_POSTGRES:
+        import psycopg
+
+        # prepare_threshold=None: compatible con el pooler de Neon (PgBouncer en modo transacción)
+        con = psycopg.connect(config.DATABASE_URL, row_factory=_fabrica_filas, prepare_threshold=None, connect_timeout=15)
+        return _ConexionPG(con)
     config.DATOS.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(config.DATOS / "pincel.db", timeout=30)
     con.row_factory = sqlite3.Row
@@ -71,7 +142,7 @@ def _conectar() -> sqlite3.Connection:
 
 
 @contextmanager
-def conexion() -> Iterator[sqlite3.Connection]:
+def conexion() -> Iterator:
     con = _conectar()
     try:
         yield con
@@ -84,6 +155,14 @@ def conexion() -> Iterator[sqlite3.Connection]:
 
 
 def iniciar() -> None:
+    if config.USA_POSTGRES:
+        with conexion() as con:
+            # candado para que dos arranques simultáneos no choquen al crear las tablas
+            con.execute("SELECT pg_advisory_xact_lock(7345001)")
+            for sentencia in (ESQUEMA + ESQUEMA_ARCHIVOS_PG).split(";"):
+                if sentencia.strip():
+                    con.execute(sentencia)
+        return
     with conexion() as con:
         con.executescript(ESQUEMA)
 
@@ -179,7 +258,7 @@ def listar_campanas(buscar: str = "", limite: int = 100000) -> list[dict]:
     with conexion() as con:
         if buscar:
             filas = con.execute(
-                "SELECT * FROM campanas WHERE nombre LIKE ? ORDER BY creado DESC LIMIT ?",
+                "SELECT * FROM campanas WHERE lower(nombre) LIKE lower(?) ORDER BY creado DESC LIMIT ?",
                 (f"%{buscar}%", limite),
             ).fetchall()
         else:
@@ -403,14 +482,15 @@ def resumen_general() -> dict:
         campanas = con.execute("SELECT COUNT(*) FROM campanas").fetchone()[0]
         total, hechas = con.execute("SELECT COUNT(*), COUNT(imagen_id) FROM prompts").fetchone()
         peso = con.execute("SELECT COALESCE(SUM(bytes), 0) FROM imagenes").fetchone()[0]
+        hoy = datetime.now(timezone.utc).date()
         semana = con.execute(
-            "SELECT COUNT(*) FROM imagenes WHERE creado >= datetime('now', '-7 days')"
+            "SELECT COUNT(*) FROM imagenes WHERE creado >= ?",
+            ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(timespec="seconds"),),
         ).fetchone()[0]
         por_dia = dict(con.execute(
-            "SELECT substr(creado, 1, 10), COUNT(*) FROM imagenes "
-            "WHERE creado >= date('now', '-13 days') GROUP BY 1"
+            "SELECT substr(creado, 1, 10), COUNT(*) FROM imagenes WHERE creado >= ? GROUP BY 1",
+            ((hoy - timedelta(days=13)).isoformat(),),
         ).fetchall())
-    hoy = datetime.now(timezone.utc).date()
     actividad = []
     for i in range(13, -1, -1):
         d = (hoy - timedelta(days=i)).isoformat()

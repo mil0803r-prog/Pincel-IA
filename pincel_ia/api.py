@@ -8,7 +8,7 @@ import re
 import zipfile
 
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse, Response
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from . import archivos, auth, config, db
@@ -72,7 +72,7 @@ async def logout(_: Request) -> Response:
 
 
 async def sesion(request: Request) -> Response:
-    return JSONResponse({"autenticado": auth.autenticado(request)})
+    return JSONResponse({"autenticado": auth.autenticado(request), "limite_subida": config.LIMITE_SUBIDA})
 
 
 # ---------------------------------------------------------------- datos
@@ -227,9 +227,10 @@ async def zip_campana(request: Request) -> Response:
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
             for p in c["prompts"]:
                 if p["imagen"]:
-                    ruta = archivos.ruta_original(p["imagen"]["ruta"].rsplit("/", 1)[-1])
-                    if ruta:
-                        z.write(ruta, f"{p['n']:02d}{ruta.suffix}")
+                    nombre = p["imagen"]["ruta"].rsplit("/", 1)[-1]
+                    leido = archivos.leer_original(nombre)
+                    if leido:
+                        z.writestr(f"{p['n']:02d}.{nombre.rsplit('.', 1)[-1]}", leido[0])
             z.writestr("prompts.txt", "\n\n".join(f"#{p['n']}\n{p['texto']}" for p in c["prompts"]))
         return buf.getvalue()
 
@@ -240,17 +241,22 @@ async def zip_campana(request: Request) -> Response:
 
 # ---------------------------------------------------------------- archivos públicos
 
-CACHE = {"Cache-Control": "public, max-age=31536000, immutable"}
+CACHE = {"Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable"}
+
+
+def _archivo(leido) -> Response:
+    if not leido:
+        return Response(status_code=404)
+    datos, tipo = leido
+    return Response(datos, media_type=tipo, headers=CACHE)
 
 
 async def imagen_publica(request: Request) -> Response:
-    p = archivos.ruta_original(request.path_params["archivo"])
-    return FileResponse(p, headers=CACHE) if p else Response(status_code=404)
+    return _archivo(await asyncio.to_thread(archivos.leer_original, request.path_params["archivo"]))
 
 
 async def miniatura_publica(request: Request) -> Response:
-    p = archivos.ruta_miniatura(request.path_params["archivo"])
-    return FileResponse(p, headers=CACHE) if p else Response(status_code=404)
+    return _archivo(await asyncio.to_thread(archivos.leer_miniatura, request.path_params["archivo"]))
 
 
 rutas = [

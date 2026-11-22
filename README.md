@@ -48,9 +48,29 @@ Una campaña puede tener **cualquier cantidad de prompts e imágenes** (7, 150, 
 
 ChatGPT solo se conecta a servidores en internet con HTTPS.
 
-**Render (recomendado):**
+### Opción A: Vercel + Neon (gratis para empezar)
+Vercel no guarda archivos en disco, así que Pincel IA usa una base de datos **Postgres (Neon)** donde guarda campañas **e imágenes**. El código lo detecta solo: con `DATABASE_URL` usa Postgres, sin ella usa SQLite.
+
+1. En Vercel: **Add New → Project** → importa el repositorio, con la rama `main`.
+2. En la pantalla de configuración:
+   - **Root Directory:** `./`
+   - **Application Preset:** cámbialo de *Services* a **Other**. Todo lo demás lo define `vercel.json`.
+3. Abre **Environment Variables** y agrega:
+   - `PINCEL_CLAVE`: la contraseña para entrar a la app.
+   - `PINCEL_TOKEN`: una clave larga y aleatoria (forma parte de la URL del conector; no la compartas).
+4. Pulsa **Deploy**. La primera vez verás una página "Casi listo" porque falta la base de datos.
+5. En el proyecto, ve a **Storage → Create Database → Neon (Postgres)** y conéctala al proyecto en todos los entornos. Vercel agrega `DATABASE_URL` solo.
+6. Ve a **Deployments → ⋯ → Redeploy**. Entra a tu dirección `https://TU-PROYECTO.vercel.app` con tu contraseña.
+7. **Importante:** en **Settings → Deployment Protection** desactiva la protección para *Production*. Si está activa, ChatGPT y Claude no pueden llegar al conector.
+
+Límites de Vercel que la app ya maneja:
+- **Peticiones de más de 4,5 MB:** el navegador reduce las imágenes pesadas y las reparte en tandas antes de subirlas; si ChatGPT envía una más grande, el servidor la aligera al guardarla.
+- **El ZIP** se arma en el navegador, porque el servidor no puede devolver archivos grandes.
+- **Espacio:** el plan gratis de Neon da 0,5 GB, suficiente para cientos de imágenes. Si llegas al tope, súbelo de plan o pásate a Render.
+
+### Opción B: Render (con disco)
 1. Crea una cuenta en render.com y conecta tu GitHub.
-2. *New → Blueprint* → elige este repositorio. Render lee `render.yaml` y te pide:
+2. *New → Blueprint* → elige este repositorio (rama `main`). Render lee `render.yaml` y te pide:
    - `PINCEL_CLAVE`: la contraseña para entrar a la app.
    - `PINCEL_URL_PUBLICA`: déjalo vacío por ahora.
 3. Cuando termine, copia la URL (ej. `https://pincel-ia.onrender.com`). Ve a *Environment*, pégala en `PINCEL_URL_PUBLICA` y guarda.
@@ -95,9 +115,11 @@ pincel_ia/            Servidor (Python)
   server.py           Arranque: une app, API y conector
   conector.py         Herramientas MCP para ChatGPT y Claude
   api.py              API de la app web
-  db.py               Base de datos (SQLite)
-  archivos.py         Imágenes y miniaturas
+  db.py               Base de datos (SQLite o Postgres)
+  archivos.py         Imágenes y miniaturas (disco o base de datos)
   auth.py             Inicio de sesión
+api/index.py          Punto de entrada para Vercel
+vercel.json           Configuración de Vercel (compilación y rutas)
 web/                  Interfaz (React + TypeScript + Vite)
   src/pages/          Inicio, Campañas, Campaña, Biblioteca, Conexiones, Login
   src/components/     Menú, visor, tarjetas, ventanas, avisos

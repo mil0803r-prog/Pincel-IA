@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "cd web && npm ci && npm run build",
+  "outputDirectory": "pincel_ia/static",
+  "functions": {
+    "api/index.py": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/i/:path*", "destination": "/api/index" },
+    { "source": "/:token/mcp", "destination": "/api/index" },
+    { "source": "/((?!api/|i/).*)", "destination": "/index.html" }
+  ]
+}
