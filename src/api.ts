@@ -60,7 +60,10 @@ async function pedir<T>(url: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(url, { credentials: "same-origin", ...init, headers: { ...headers, ...(init.headers || {}) } });
   const datos = await r.json().catch(() => ({}));
   if (r.status === 401 && !url.endsWith("/login")) window.dispatchEvent(new Event("pincel:salir"));
-  if (!r.ok) throw new ApiError(datos.error || `Error ${r.status}`, r.status);
+  if (!r.ok) {
+    const sinDetalle = r.status >= 500 ? `El servidor no está listo (error ${r.status}). Revisa las variables y la base de datos en Vercel.` : `Error ${r.status}`;
+    throw new ApiError(datos.error || sinDetalle, r.status);
+  }
   return datos as T;
 }
 

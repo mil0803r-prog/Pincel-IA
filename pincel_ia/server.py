@@ -116,6 +116,10 @@ class AppVercel:
         if scope["type"] != "http":
             return
         if config.FALTAN:
+            if scope["path"].startswith("/api/"):  # la interfaz muestra este texto en la pantalla de entrada
+                aviso = "Falta configurar en Vercel: " + ", ".join(config.FALTAN) + ". Luego haz Redeploy."
+                await JSONResponse({"error": aviso}, status_code=503)(scope, receive, send)
+                return
             lista = "".join(f"<li><code>{escape(v)}</code></li>" for v in config.FALTAN)
             await HTMLResponse(PAGINA_CONFIG.format(lista=lista), status_code=503)(scope, receive, send)
             return
