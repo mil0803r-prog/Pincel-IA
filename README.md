@@ -1,87 +1,75 @@
 # Pincel IA 🎨
 
-Puente entre **Claude** y la **API de imágenes de OpenAI** (los mismos modelos que usa ChatGPT para crear imágenes).
-
-Tu skill de ventas por WhatsApp (Chatea Pro) escribe los prompts → Claude se los manda **todos juntos** a Pincel IA → Pincel IA genera las imágenes **en paralelo** → quedan guardadas en una carpeta, con una galería `index.html` para verlas y descargarlas.
+Lleva los prompts de imagen que escribe **Claude** (tu skill de ventas por WhatsApp para Chatea Pro) a **ChatGPT**. ChatGPT crea las imágenes con tu suscripción, sin pagar API, y las devuelve a una plataforma donde quedan guardadas con link público.
 
 ```
-Skill de ventas ──► Claude ──(MCP)──► Pincel IA ──(API)──► OpenAI gpt-image
-                                          │
-                                          └──► imagenes/20261122-1310-crema-facial/
-                                                 01-....png … 07-....png
-                                                 index.html  (galería)
-                                                 lote.json   (prompts + resultados)
+1. Claude (skill de ventas) ──crear_campana──►  PINCEL IA  (tu servidor en internet)
+2. ChatGPT ◄──obtener_prompts── "Trae la campaña crema black friday"
+3. ChatGPT crea las 7 imágenes
+4. "Enviar a la plataforma" ──subir_imagen──►  PINCEL IA  ──► link público de cada imagen
+                     (o las arrastras al buzón web de la campaña)
+5. Claude ◄──obtener_imagenes── links / ZIP para bajarlas a tu carpeta
 ```
 
-## Importante: API ≠ suscripción de ChatGPT
+## Lo que tienes que saber
+- **ChatGPT crea las imágenes una por una**, no las 7 a la vez. A veces se detiene a mitad: dile "continúa".
+- **Tu plan de ChatGPT tiene un límite de imágenes por periodo.**
+- **El envío automático desde ChatGPT puede fallar.** Pasar a una herramienta una imagen creada en el chat depende de cómo ChatGPT maneje los archivos, y eso cambia seguido. Si no funciona, ChatGPT te da el link del **buzón**: descargas las imágenes y las arrastras todas juntas. Toma unos segundos.
+- **Necesitas ChatGPT Plus, Pro, Business o Enterprise** con el **modo desarrollador** activado para agregar conectores propios.
 
-- Se usa la **API de OpenAI** (platform.openai.com), no la app de ChatGPT. La suscripción ChatGPT Plus **no incluye** créditos de API: se paga aparte, por imagen.
-- Las imágenes **no aparecen en tu historial de ChatGPT**; quedan en tu carpeta `imagenes/`.
-- Para pruebas baratas usa `calidad: "low"`; para la pieza final, `"high"`.
+## 1. Publicar el servidor (una sola vez)
 
-## Instalación
+ChatGPT solo se conecta a servidores en internet con HTTPS, no a tu PC.
 
-```bash
-git clone <este repo> && cd Pincel-IA
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt     # Windows: .venv\Scripts\pip install -r requirements.txt
-```
+**Opción Render (recomendada):**
+1. Crea una cuenta en render.com y conecta tu GitHub.
+2. *New → Blueprint* → elige este repositorio. Render lee `render.yaml`.
+3. Cuando termine, copia la URL (ej. `https://pincel-ia.onrender.com`). Ve a *Environment* y pégala en `PINCEL_URL_PUBLICA`. Ahí mismo verás tu `PINCEL_TOKEN` (generado automáticamente).
+4. Guarda: se redepliega solo.
 
-Crea tu clave en https://platform.openai.com/api-keys (y carga saldo en Billing).
+> Se usa el plan *Starter* porque incluye disco. En el plan gratis las imágenes se borran cada vez que el servidor se reinicia.
 
-## Conectarlo a Claude
+**Otra opción:** cualquier hosting con Docker (Railway, Fly.io, un VPS). Usa el `Dockerfile` y monta un volumen en `/datos`.
 
-### Claude Desktop
-Edita `claude_desktop_config.json` (Configuración → Desarrollador → Editar configuración):
+Tus direcciones (cambia `TU-URL` y `TU-TOKEN`):
+- **Conector MCP:** `https://TU-URL/TU-TOKEN/mcp`
+- **Panel de campañas:** `https://TU-URL/TU-TOKEN/panel`
 
-```json
-{
-  "mcpServers": {
-    "pincel-ia": {
-      "command": "/RUTA/A/Pincel-IA/.venv/bin/python",
-      "args": ["-m", "pincel_ia.server"],
-      "cwd": "/RUTA/A/Pincel-IA",
-      "env": {
-        "OPENAI_API_KEY": "sk-...",
-        "PINCEL_CARPETA": "/RUTA/DONDE/QUIERES/LAS/IMAGENES"
-      }
-    }
-  }
-}
-```
-En Windows: `"command": "C:\\RUTA\\Pincel-IA\\.venv\\Scripts\\python.exe"`. Reinicia Claude Desktop.
+⚠️ El token es la contraseña. Quien tenga la URL del conector puede usarlo, así que no la compartas.
 
-### Claude Code
-```bash
-claude mcp add pincel-ia \
-  -e OPENAI_API_KEY=sk-... -e PINCEL_CARPETA=$PWD/imagenes \
-  -- /RUTA/A/Pincel-IA/.venv/bin/python -m pincel_ia.server
-```
+## 2. Conectarlo a ChatGPT
+1. ChatGPT → *Configuración → Aplicaciones y conectores → Configuración avanzada* → activa **Modo desarrollador**. El nombre del menú puede variar.
+2. *Crear conector* → Nombre: `Pincel IA` → URL: `https://TU-URL/TU-TOKEN/mcp` → Autenticación: **Sin autenticación**.
+3. En un chat nuevo, activa el conector (botón **+** → Modo desarrollador → Pincel IA).
 
-## Uso
+## 3. Conectarlo a Claude
+- **claude.ai / Claude Desktop:** *Configuración → Conectores → Agregar conector personalizado* → pega la misma URL.
+- **Claude Code:** `claude mcp add --transport http pincel-ia https://TU-URL/TU-TOKEN/mcp`
 
-Dile a Claude algo como:
+## Uso diario
+1. **En Claude:** *"Genera los 7 prompts de imagen de la campaña y guárdalos en Pincel IA como 'crema black friday'"*.
+2. **En ChatGPT:** *"Trae la campaña crema black friday y crea las imágenes"*.
+3. **En ChatGPT:** *"Enviar a la plataforma"*. Si falla, abre el link del buzón y arrastra las imágenes.
+4. **En Claude** (opcional): *"Trae las imágenes de la campaña crema black friday"*. Recibes los links públicos para usarlos en Chatea Pro, o Claude Code las baja a tu carpeta.
 
-> Genera los 7 prompts de imagen de la campaña y mándalos a Pincel IA en vertical, lote "crema-black-friday". Usa la foto `C:\fotos\crema.jpg` como referencia del producto.
+## Herramientas del conector
 
-### Herramientas que ve Claude
-
-| Herramienta | Qué hace |
-|---|---|
-| `generar_imagenes` | Recibe la lista de prompts y genera todas a la vez. Opciones: `nombre_lote`, `tamano` (`cuadrado`, `vertical`, `horizontal`), `calidad` (`low`/`medium`/`high`), `formato` (`png`/`jpeg`/`webp`), `imagenes_referencia` (fotos reales del producto o logo para que salgan fieles). |
-| `listar_lotes` | Muestra los últimos lotes con sus carpetas y archivos. |
-
-Si una imagen falla (por ejemplo, por moderación), las demás igual se guardan y Claude ve cuál falló y por qué.
-
-## Configuración (variables de entorno)
-
-| Variable | Por defecto | Uso |
+| Herramienta | Quién la usa | Qué hace |
 |---|---|---|
-| `OPENAI_API_KEY` | — | Obligatoria. |
-| `PINCEL_MODELO` | `gpt-image-2` | Ej. `gpt-image-1.5`, `gpt-image-1-mini` (más barato). |
-| `PINCEL_CARPETA` | `./imagenes` | Dónde se guardan los lotes. |
-| `PINCEL_PARALELO` | `4` | Imágenes generadas a la vez (súbelo si tu cuenta tiene límites altos). |
+| `crear_campana` | Claude | Guarda nombre + todos los prompts (+ notas de estilo comunes). |
+| `obtener_prompts` | ChatGPT | Trae los prompts con instrucciones para crearlos tal cual, en orden. |
+| `subir_imagen` | ChatGPT | Envía una imagen creada a su puesto (número) en la campaña. |
+| `obtener_imagenes` | Claude | Links públicos de las imágenes y cuáles faltan. |
+| `listar_campanas` | Ambos | Últimas campañas y su avance. |
 
-## Próximos pasos posibles
-- Subir cada imagen a un almacenamiento en la nube (Cloudinary, S3, Google Drive) y devolver un **link público** para pegarlo directo en los flujos de Chatea Pro.
-- Plantillas de estilo de marca (colores, tipografía, logo) que se añadan automáticamente a cada prompt.
+## Páginas web
+- `/c/<id>`: **buzón de la campaña**. Ves las imágenes, arrastras las que falten (todas juntas o una por tarjeta), copias prompts o links y descargas.
+- `/c/<id>.zip`: todas las imágenes + `prompts.txt`.
+- `/TU-TOKEN/panel`: lista de todas tus campañas.
+
+## Probar en tu PC
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+PINCEL_TOKEN=prueba .venv/bin/python -m pincel_ia.server
+# Buzón y panel en http://localhost:8000/prueba/panel
+```

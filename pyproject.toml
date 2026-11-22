@@ -1,9 +1,9 @@
 [project]
 name = "pincel-ia"
 version = "0.1.0"
-description = "Servidor MCP que conecta Claude con la API de imágenes de OpenAI para generar lotes de imágenes profesionales."
+description = "Conector MCP que lleva tus prompts de Claude a ChatGPT y recibe las imágenes creadas allí."
 requires-python = ">=3.10"
-dependencies = ["mcp>=2.3,<3", "openai>=3.57,<4"]
+dependencies = ["mcp>=2.3,<3", "uvicorn>=0.30", "python-multipart>=0.0.9"]
 
 [project.scripts]
 pincel-ia = "pincel_ia.server:main"

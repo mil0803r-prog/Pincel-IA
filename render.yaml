@@ -1,0 +1,16 @@
+# Despliegue en Render (render.com): New > Blueprint > elige este repo.
+services:
+  - type: web
+    name: pincel-ia
+    runtime: docker
+    plan: starter            # el plan gratis no permite disco: las imágenes se borrarían al reiniciar
+    healthCheckPath: /
+    envVars:
+      - key: PINCEL_TOKEN
+        generateValue: true  # contraseña secreta del conector; la ves en Environment
+      - key: PINCEL_URL_PUBLICA
+        sync: false          # pon aquí la URL que te da Render, ej. https://pincel-ia.onrender.com
+    disk:
+      name: datos
+      mountPath: /datos
+      sizeGB: 1
