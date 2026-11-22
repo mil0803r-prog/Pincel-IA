@@ -19,13 +19,23 @@ TOKEN = os.environ.get("PINCEL_TOKEN", "")
 CLAVE = os.environ.get("PINCEL_CLAVE", "")
 
 # Base de datos: Postgres si hay una URL (Vercel + Neon); si no, SQLite en disco (local, Render, Docker).
-DATABASE_URL = (
-    os.environ.get("PINCEL_DATABASE_URL")
-    or os.environ.get("DATABASE_URL")
-    or os.environ.get("POSTGRES_URL")
-    or ""
-).strip()
-USA_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+_PREFIJOS_PG = ("postgres://", "postgresql://")
+
+
+def _buscar_bd() -> str:
+    for nombre in ("PINCEL_DATABASE_URL", "DATABASE_URL", "POSTGRES_URL"):
+        valor = os.environ.get(nombre, "").strip()
+        if valor.startswith(_PREFIJOS_PG):
+            return valor
+    # Vercel puede agregar un prefijo al nombre (p. ej. STORAGE_URL): se acepta cualquier variable con una URL de Postgres,
+    # prefiriendo la conexión con pooler y dejando para el final las "sin pooler".
+    candidatas = [(n, v.strip()) for n, v in os.environ.items() if v.strip().startswith(_PREFIJOS_PG)]
+    candidatas.sort(key=lambda nv: (("UNPOOLED" in nv[0] or "NON_POOLING" in nv[0]), nv[0]))
+    return candidatas[0][1] if candidatas else ""
+
+
+DATABASE_URL = _buscar_bd()
+USA_POSTGRES = DATABASE_URL.startswith(_PREFIJOS_PG)
 
 # Variables que sí o sí deben estar definidas cuando corre en Vercel.
 FALTAN: list[str] = []
