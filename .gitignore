@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 .env
 datos/
-web/node_modules/
+node_modules/
+dist/
 demo-build/

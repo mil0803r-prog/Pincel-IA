@@ -1,5 +1,5 @@
 {
-  "name": "pincel-ia-web",
+  "name": "pincel-ia",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "build:demo": "tsc --noEmit && vite build --mode demo --outDir ../demo-build --emptyOutDir"
+    "build:demo": "tsc --noEmit && vite build --mode demo --outDir demo-build --emptyOutDir"
   },
   "dependencies": {
     "fflate": "0.8.3",

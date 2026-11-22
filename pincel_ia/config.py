@@ -62,7 +62,7 @@ def _url_publica() -> str:
 URL_PUBLICA = _url_publica()
 DATOS = Path(os.environ.get("PINCEL_DATOS", "./datos")).expanduser().resolve()
 PORT = int(os.environ.get("PORT", "8000"))
-ESTATICOS = Path(__file__).parent / "static"
+ESTATICOS = Path(__file__).resolve().parent.parent / "dist"
 MAX_BYTES = 25 * 1024 * 1024
 
 # Tope de tamaño de una petición/respuesta de función. Vercel permite ~4,5 MB; dejamos margen.

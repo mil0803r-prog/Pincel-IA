@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{node_modules/**,src/**,public/**,dist/**,demo-build/**,.git/**}"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/i/:path*", "destination": "/api/index" },
+    { "source": "/:token/mcp", "destination": "/api/index" },
+    { "source": "/((?!api/|i/).*)", "destination": "/index.html" }
+  ]
+}

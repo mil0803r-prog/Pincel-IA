@@ -19,7 +19,7 @@ from .conector import mcp
 
 SIN_FRONTEND = """<!doctype html><meta charset=utf-8><title>Pincel IA</title>
 <body style="font-family:system-ui;padding:40px"><h1>Pincel IA</h1>
-<p>Falta compilar la interfaz: <code>cd web && npm install && npm run build</code></p>"""
+<p>Falta compilar la interfaz: <code>npm install && npm run build</code></p>"""
 
 
 async def spa(request: Request) -> Response:
