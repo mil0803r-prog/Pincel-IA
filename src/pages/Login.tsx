@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ArrowRight, Loader2, Lock } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { api, DEMO } from "../api";
 import { Logo } from "../components/ui";
 import { Fondo } from "../components/Layout";
@@ -8,6 +8,7 @@ export default function Login({ onEntrar }: { onEntrar: () => void }) {
   const [clave, setClave] = useState("");
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [ver, setVer] = useState(false);
 
   async function entrar(e: FormEvent) {
     e.preventDefault();
@@ -57,14 +58,24 @@ export default function Login({ onEntrar }: { onEntrar: () => void }) {
               <input
                 id="clave"
                 className="input"
-                style={{ width: "100%", height: 46 }}
-                type="password"
+                style={{ width: "100%", height: 46, paddingRight: 46 }}
+                type={ver ? "text" : "password"}
                 autoFocus
                 autoComplete="current-password"
                 placeholder="••••••••"
                 value={clave}
                 onChange={(e) => setClave(e.target.value)}
               />
+              <button
+                type="button"
+                className="pw-toggle"
+                onClick={() => setVer(!ver)}
+                aria-label={ver ? "Ocultar contraseña" : "Mostrar contraseña"}
+                title={ver ? "Ocultar contraseña" : "Mostrar contraseña"}
+                tabIndex={0}
+              >
+                {ver ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
             {error && <span className="error-text">{error}</span>}
           </div>
