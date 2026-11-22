@@ -38,6 +38,16 @@ CREATE TABLE IF NOT EXISTS imagenes (
     origen     TEXT NOT NULL,
     creado     TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS referencias (
+    id         TEXT PRIMARY KEY,
+    campana_id TEXT NOT NULL REFERENCES campanas(id) ON DELETE CASCADE,
+    archivo    TEXT NOT NULL,
+    miniatura  TEXT NOT NULL,
+    ancho      INTEGER NOT NULL,
+    alto       INTEGER NOT NULL,
+    creado     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_referencias_campana ON referencias(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_campana ON imagenes(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_creado ON imagenes(creado);
 """
@@ -104,6 +114,19 @@ def _imagen_dict(r: sqlite3.Row | None) -> dict | None:
         "bytes": r["bytes"],
         "origen": r["origen"],
         "creado": r["creado"],
+    }
+
+
+def _referencia_dict(r: sqlite3.Row) -> dict:
+    return {
+        "id": r["id"],
+        "url": f"{config.URL_PUBLICA}/i/{r['archivo']}",
+        "ruta": f"/i/{r['archivo']}",
+        "ruta_miniatura": f"/i/t/{r['miniatura']}",
+        "archivo": r["archivo"],
+        "miniatura": r["miniatura"],
+        "ancho": r["ancho"],
+        "alto": r["alto"],
     }
 
 
@@ -177,6 +200,9 @@ def obtener_campana(cid: str) -> dict:
         c["prompts"] = [
             {"n": f["n"], "texto": f["texto"], "imagen": _imagen_dict(f) if f["id"] else None} for f in filas
         ]
+        c["referencias"] = [_referencia_dict(r) for r in con.execute(
+            "SELECT * FROM referencias WHERE campana_id = ? ORDER BY creado", (cid,)
+        ).fetchall()]
         return c
 
 
@@ -241,7 +267,10 @@ def agregar_prompts(cid: str, prompts: list[str]) -> dict:
 
 def eliminar_campana(cid: str) -> None:
     with conexion() as con:
-        imgs = con.execute("SELECT archivo, miniatura FROM imagenes WHERE campana_id = ?", (cid,)).fetchall()
+        imgs = con.execute(
+            "SELECT archivo, miniatura FROM imagenes WHERE campana_id = ? "
+            "UNION ALL SELECT archivo, miniatura FROM referencias WHERE campana_id = ?", (cid, cid)
+        ).fetchall()
         cur = con.execute("DELETE FROM campanas WHERE id = ?", (cid,))
         if cur.rowcount == 0:
             raise NoEncontrado(f"No existe la campaña '{cid}'.")
@@ -302,6 +331,37 @@ def quitar_imagen(cid: str, n: int) -> dict:
         con.execute("UPDATE prompts SET imagen_id = NULL WHERE campana_id = ? AND n = ?", (cid, n))
         con.execute("DELETE FROM imagenes WHERE id = ?", (fila["id"],))
     archivos.borrar(fila["archivo"], fila["miniatura"])
+    return obtener_campana(cid)
+
+
+def agregar_referencia(cid: str, datos: bytes) -> dict:
+    """Guarda una imagen de referencia del producto (mockup, foto real, logo) para la campaña."""
+    info = archivos.procesar(datos)
+    try:
+        with conexion() as con:
+            if con.execute("SELECT 1 FROM campanas WHERE id = ?", (cid,)).fetchone() is None:
+                raise NoEncontrado(f"No existe la campaña '{cid}'.")
+            if con.execute("SELECT COUNT(*) FROM referencias WHERE campana_id = ?", (cid,)).fetchone()[0] >= 6:
+                raise Invalido("Máximo 6 imágenes de referencia por campaña.")
+            con.execute(
+                "INSERT INTO referencias (id, campana_id, archivo, miniatura, ancho, alto, creado) VALUES (?,?,?,?,?,?,?)",
+                (info["id"], cid, info["archivo"], info["miniatura"], info["ancho"], info["alto"], ahora()),
+            )
+            con.execute("UPDATE campanas SET actualizado = ? WHERE id = ?", (ahora(), cid))
+            r = con.execute("SELECT * FROM referencias WHERE id = ?", (info["id"],)).fetchone()
+    except Exception:
+        archivos.borrar(info["archivo"], info["miniatura"])
+        raise
+    return _referencia_dict(r)
+
+
+def quitar_referencia(cid: str, rid: str) -> dict:
+    with conexion() as con:
+        r = con.execute("SELECT * FROM referencias WHERE id = ? AND campana_id = ?", (rid, cid)).fetchone()
+        if r is None:
+            raise NoEncontrado("Esa referencia no existe.")
+        con.execute("DELETE FROM referencias WHERE id = ?", (rid,))
+    archivos.borrar(r["archivo"], r["miniatura"])
     return obtener_campana(cid)
 
 

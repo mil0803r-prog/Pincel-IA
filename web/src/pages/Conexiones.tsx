@@ -4,7 +4,7 @@ import { api } from "../api";
 import { Cabecera, Logo, useCopiar } from "../components/ui";
 
 const FRASES = [
-  { donde: "Claude", texto: "Genera los prompts de imagen de la campaña y guárdalos en Pincel IA como «nombre de la campaña»." },
+  { donde: "Claude", texto: "Este es el mockup de mi producto. Crea los prompts de imagen para la campaña y guárdalos en Pincel IA como «nombre de la campaña»." },
   { donde: "ChatGPT", texto: "Trae la campaña «nombre de la campaña» de Pincel IA y crea las imágenes." },
   { donde: "ChatGPT", texto: "Enviar a la plataforma." },
   { donde: "ChatGPT", texto: "Trae el siguiente lote de la campaña y continúa hasta terminar todas, enviando cada lote a la plataforma." },

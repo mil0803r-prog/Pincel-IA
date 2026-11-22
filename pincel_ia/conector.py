@@ -8,10 +8,10 @@ import urllib.request
 from typing import Any
 from urllib.parse import urlparse
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Image, MCPServer
 from mcp.types import ToolAnnotations
 
-from . import config, db
+from . import archivos, config, db
 
 mcp = MCPServer(
     "pincel-ia",
@@ -20,6 +20,10 @@ mcp = MCPServer(
         "Pincel IA es la plataforma de campañas de imágenes del usuario. "
         "Desde Claude: usa `crear_campana` con TODOS los prompts de imagen juntos. "
         "Las campañas no tienen límite de prompts. "
+        "Si el usuario envía un mockup o foto del producto: descríbelo con precisión en CADA prompt (forma, colores, "
+        "material, textos exactos de la etiqueta y logo) para que salga idéntico, y guárdalo como imagen de referencia "
+        "(`referencias_url` en `crear_campana`, o `subir_referencia`). Si no puedes adjuntar el archivo, pide al usuario "
+        "que lo arrastre en la sección 'Producto de referencia' de la campaña (link `en_la_app`). "
         "Desde ChatGPT: usa `obtener_prompts` (trae lotes de prompts pendientes), genera cada imagen con el prompt EXACTO, "
         "envíalas con `subir_imagen` y vuelve a llamar `obtener_prompts` hasta que no falte ninguna."
     ),
@@ -46,17 +50,29 @@ def _resumen(c: dict) -> dict:
 # ---------------------------------------------------------------- Claude
 
 @mcp.tool(annotations=ESCRITURA)
-def crear_campana(nombre: str, prompts: list[str], notas_estilo: str = "") -> dict:
+async def crear_campana(nombre: str, prompts: list[str], notas_estilo: str = "", referencias_url: list[str] | None = None) -> dict:
     """Guarda en Pincel IA una campaña con sus prompts de imagen para crearlos luego en ChatGPT.
 
     Args:
         nombre: Nombre corto y fácil de decir (ej. "crema black friday"). El usuario lo usará en ChatGPT.
         prompts: Todos los prompts de imagen, uno por imagen, completos y detallados. Sin límite de cantidad.
         notas_estilo: Indicaciones comunes opcionales (formato vertical 9:16, colores de marca, etc.).
+        referencias_url: Links públicos (https) a imágenes del producto (mockup, foto real, logo) para usarlas como
+            referencia en todas las imágenes. Opcional.
     """
     c = db.crear_campana(nombre, prompts, notas_estilo, origen="claude")
+    avisos = []
+    for url in (referencias_url or [])[:6]:
+        try:
+            await asyncio.to_thread(db.agregar_referencia, c["id"], await _bytes_de(url))
+        except Exception as e:
+            avisos.append(f"No pude guardar la referencia {url}: {e}")
+    c = db.obtener_campana(c["id"])
     return {
         **_resumen(c),
+        "referencias": len(c["referencias"]),
+        **({"avisos": avisos} if avisos else {}),
+        **({} if c["referencias"] else {"falta_referencia": f"Si hay mockup del producto, súbelo como referencia en {url_app(c['id'])} (sección 'Producto de referencia')."}),
         "siguiente_paso": f'En ChatGPT, con el conector Pincel IA activo, escribe: "Trae la campaña {c["nombre"]} y crea las imágenes".',
     }
 
@@ -86,8 +102,8 @@ def obtener_imagenes(campana: str = "") -> dict:
 
 # ---------------------------------------------------------------- ChatGPT
 
-@mcp.tool(annotations=LECTURA)
-def obtener_prompts(campana: str = "", cantidad: int = 10) -> dict:
+@mcp.tool(annotations=LECTURA, structured_output=False)
+def obtener_prompts(campana: str = "", cantidad: int = 10) -> list:
     """Trae el siguiente lote de prompts SIN imagen de una campaña de Pincel IA para crearlos.
 
     Las campañas pueden tener cualquier cantidad de prompts: se trabajan por lotes.
@@ -108,14 +124,24 @@ def obtener_prompts(campana: str = "", cantidad: int = 10) -> dict:
         "imagenes_cargadas": c["hechas"],
         "faltan_total": faltan,
     }
+    refs = c.get("referencias", [])
+    if refs:
+        base["referencias_producto"] = [r["url"] for r in refs]
     if not lote:
-        return {**base, "lote": [], "instrucciones": "¡Campaña completa! Todas las imágenes ya están en Pincel IA."}
+        return [{**base, "lote": [], "instrucciones": "¡Campaña completa! Todas las imágenes ya están en Pincel IA."}]
+    texto_ref = (
+        f"IMPORTANTE: esta campaña tiene {len(refs)} imagen(es) de referencia del producto (adjuntas aquí y en "
+        "`referencias_producto`). Usa ese producto EXACTO en cada imagen: misma forma, colores, etiqueta, textos y logo; "
+        "cambia solo la escena, el fondo y la composición que pide cada prompt. Si no puedes ver la referencia, pide al "
+        "usuario que adjunte el mockup del producto en este chat antes de empezar. "
+        if refs else ""
+    )
     numeros = ", ".join(str(p["n"]) for p in lote)
     quedan_despues = faltan - len(lote)
-    return {
+    respuesta: list = [{
         **base,
         "lote": [{"n": p["n"], "prompt": p["texto"]} for p in lote],
-        "instrucciones": (
+        "instrucciones": texto_ref + (
             f"Este lote tiene {len(lote)} prompts (números {numeros}) de {faltan} que faltan. "
             "Genera una imagen por cada prompt del lote, en orden, usando el texto EXACTO (no lo resumas ni lo cambies) "
             "y sin pedir confirmación entre imágenes. Antes de cada imagen escribe su número (ej. 'Imagen 12'). "
@@ -128,7 +154,32 @@ def obtener_prompts(campana: str = "", cantidad: int = 10) -> dict:
             )
             + f"Si no puedes adjuntar las imágenes, pide al usuario que las descargue y las arrastre en la app: {url_app(c['id'])}"
         ),
-    }
+    }]
+    for r in refs[:3]:
+        datos = archivos.version_para_ia(r["archivo"])
+        if datos:
+            respuesta.append(Image(data=datos, format="png" if datos[:4] == b"\x89PNG" else "jpeg"))
+    return respuesta
+
+
+@mcp.tool(annotations=ESCRITURA, meta={"openai/fileParams": ["imagen"]})
+async def subir_referencia(campana: str, imagen: dict | str) -> dict:
+    """Guarda una imagen de referencia del producto (mockup, foto real o logo) en una campaña de Pincel IA.
+
+    ChatGPT la recibirá junto con los prompts para que el producto salga idéntico en todas las imágenes.
+
+    Args:
+        campana: Nombre o id de la campaña.
+        imagen: La imagen del producto (archivo adjunto de la conversación, link https o base64).
+    """
+    c = db.buscar_campana(campana)
+    try:
+        ref = await asyncio.to_thread(db.agregar_referencia, c["id"], await _bytes_de(imagen))
+    except Exception as e:
+        return {"ok": False, "error": str(e),
+                "alternativa": f"Pide al usuario que arrastre el mockup en la sección 'Producto de referencia': {url_app(c['id'])}"}
+    c = db.obtener_campana(c["id"])
+    return {"ok": True, "campana": c["nombre"], "referencia": ref["url"], "referencias": len(c["referencias"])}
 
 
 @mcp.tool(annotations=ESCRITURA)

@@ -27,6 +27,12 @@ La app está pensada para crecer:
 2. **Datos y API:** añade tablas en `pincel_ia/db.py` y rutas en `pincel_ia/api.py`.
 3. **Herramientas para ChatGPT y Claude:** añádelas en `pincel_ia/conector.py`.
 
+## Con el mockup de tu producto
+1. **Envía a Claude el mockup** (o la foto real) del producto y pídele la campaña.
+2. **Claude lo mira y escribe los prompts** describiendo el producto con detalle (forma, colores, etiqueta, logo) y los guarda en Pincel IA.
+3. **El mockup queda como "Producto de referencia" de la campaña.** Claude lo guarda solo si tiene un link a la imagen o trabaja con archivos (Claude Code). En claude.ai, Claude no puede pasar el archivo al conector, así que lo arrastras tú una vez en la sección *Producto de referencia*; Claude te da el link.
+4. **ChatGPT recibe el mockup junto con cada lote de prompts** y la instrucción de mantener el producto idéntico en todas las imágenes. Si ChatGPT no lo ve, adjúntale el mockup en el chat una vez.
+
 ## Sin límite de imágenes
 Una campaña puede tener **cualquier cantidad de prompts e imágenes** (7, 150, 1.000…):
 - **Claude** crea la campaña con todos los prompts y puede seguir agregando más con `agregar_prompts`.
@@ -64,8 +70,9 @@ Los pasos están dentro de la app, en **Conexiones**. En resumen:
 
 | Herramienta | Quién la usa | Qué hace |
 |---|---|---|
-| `crear_campana` | Claude | Guarda nombre + todos los prompts (+ notas de estilo). Sin límite de cantidad. |
+| `crear_campana` | Claude | Guarda nombre + todos los prompts (+ notas de estilo y links del mockup en `referencias_url`). Sin límite de cantidad. |
 | `agregar_prompts` | Claude | Agrega más prompts al final de una campaña existente. |
+| `subir_referencia` | Claude o ChatGPT | Guarda el mockup o foto del producto como referencia de la campaña (hasta 6). |
 | `obtener_prompts` | ChatGPT | Trae el siguiente **lote** de prompts pendientes (10 por defecto, hasta 25) con instrucciones; se repite hasta terminar. |
 | `subir_imagen` | ChatGPT | Envía una imagen creada a su número en la campaña. |
 | `obtener_imagenes` | Claude | Links públicos de las imágenes y cuáles faltan. |

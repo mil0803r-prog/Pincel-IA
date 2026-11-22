@@ -77,3 +77,19 @@ def borrar(archivo: str | None, miniatura: str | None) -> None:
         (dir_imagenes() / archivo).unlink(missing_ok=True)
     if miniatura and _seguro(miniatura):
         (dir_miniaturas() / miniatura).unlink(missing_ok=True)
+
+
+def version_para_ia(nombre: str, lado: int = 1024) -> bytes | None:
+    """Copia reducida (JPEG/PNG) de una imagen guardada, para enviarla dentro de una respuesta del conector."""
+    p = ruta_original(nombre)
+    if not p:
+        return None
+    with Image.open(p) as im:
+        im = ImageOps.exif_transpose(im)
+        im.thumbnail((lado, lado))
+        buf = io.BytesIO()
+        if im.mode in ("RGBA", "LA", "P"):
+            im.convert("RGBA").save(buf, "PNG", optimize=True)
+        else:
+            im.convert("RGB").save(buf, "JPEG", quality=88)
+        return buf.getvalue()

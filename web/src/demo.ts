@@ -2,7 +2,7 @@
  * Modo demo: la misma app funcionando 100% en el navegador, con datos de ejemplo
  * en memoria (sin servidor). Se activa al compilar con `npm run build:demo`.
  */
-import type { Campana, CampanaResumen, Imagen, Prompt, Resumen } from "./api";
+import type { Campana, CampanaResumen, Imagen, Prompt, Referencia, Resumen } from "./api";
 
 type Producto = "frasco" | "perfume" | "zapatilla" | "taza" | "regalo";
 
@@ -59,12 +59,18 @@ function svgProducto(tipo: Producto, hue: number, variante: number, ancho = 800,
   </svg>`;
 }
 
+function svgMockup(tipo: Producto, hue: number): string {
+  return svgProducto(tipo, hue, 0, 800, 800)
+    .replace(/<rect width="100%" height="100%" fill="url\(#f\)"\/>/, '<rect width="100%" height="100%" fill="#f4f4f6"/>')
+    .replace(/<rect width="100%" height="100%" fill="url\(#l\)"\/>/, "");
+}
+
 const aDataUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
 /* ---------------- datos en memoria ---------------- */
 type ImgInterna = Imagen;
 type PromptInterno = { n: number; texto: string; imagen: ImgInterna | null };
-type CampInterna = Omit<CampanaResumen, "total" | "hechas" | "portada" | "miniaturas"> & { prompts: PromptInterno[]; producto: Producto; hue: number };
+type CampInterna = Omit<CampanaResumen, "total" | "hechas" | "portada" | "miniaturas"> & { prompts: PromptInterno[]; producto: Producto; hue: number; referencias: Referencia[] };
 
 let semilla = 7;
 const azar = () => ((semilla = (semilla * 16807) % 2147483647) / 2147483647);
@@ -77,7 +83,11 @@ function crearImagen(c: CampInterna, n: number, origen: string, creado: string, 
 }
 
 function nuevaCamp(nombre: string, notas: string, producto: Producto, hue: number, textos: string[], hechas: number, dias: number, origen = "claude"): CampInterna {
-  const c: CampInterna = { id: uid(), nombre, notas, origen, creado: haceDias(dias, 3), actualizado: haceDias(0), producto, hue, prompts: [] };
+  const c: CampInterna = { id: uid(), nombre, notas, origen, creado: haceDias(dias, 3), actualizado: haceDias(0), producto, hue, prompts: [], referencias: [] };
+  if (origen === "claude") {
+    const url = aDataUrl(svgMockup(producto, hue));
+    c.referencias.push({ id: uid(), url, ruta: url, ruta_miniatura: url, ancho: 800, alto: 800 });
+  }
   c.prompts = textos.map((texto, i) => ({ n: i + 1, texto, imagen: null }));
   for (let i = 0; i < hechas; i++) {
     const d = Math.max(0, Math.round(azar() * Math.min(dias, 12)));
@@ -139,7 +149,7 @@ function resumen(c: CampInterna): CampanaResumen {
     miniaturas: conImg.slice(0, 4).map((p) => p.imagen!.ruta_miniatura),
   };
 }
-const completa = (c: CampInterna): Campana => ({ ...resumen(c), prompts: copia(c.prompts) as Prompt[] });
+const completa = (c: CampInterna): Campana => ({ ...resumen(c), prompts: copia(c.prompts) as Prompt[], referencias: copia(c.referencias) });
 
 function leerArchivo(f: File): Promise<{ url: string; ancho: number; alto: number }> {
   return new Promise((ok, mal) => {
@@ -212,6 +222,19 @@ export function crearApiDemo(separarPrompts: (t: string) => string[]) {
       const p = buscar(id).prompts.find((x) => x.n === n);
       if (p) p.texto = texto.trim();
       return completa(buscar(id));
+    },
+    subirReferencias: async (id: string, archivos: File[]) => {
+      const c = buscar(id);
+      for (const f of archivos.slice(0, 6 - c.referencias.length)) {
+        const info = await leerArchivo(f);
+        c.referencias.push({ id: uid(), url: info.url, ruta: info.url, ruta_miniatura: info.url, ancho: info.ancho, alto: info.alto });
+      }
+      return completa(c);
+    },
+    quitarReferencia: async (id: string, rid: string) => {
+      const c = buscar(id);
+      c.referencias = c.referencias.filter((r) => r.id !== rid);
+      return completa(c);
     },
     quitarImagen: async (id: string, n: number) => {
       const p = buscar(id).prompts.find((x) => x.n === n);

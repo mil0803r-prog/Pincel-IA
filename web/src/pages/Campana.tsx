@@ -21,6 +21,7 @@ import {
 import { api, DEMO, fecha, urlPublica, type Campana as TCampana, type Prompt } from "../api";
 import { Anillo, Confirmar, Estado, Menu, Modal, useCopiar, useToast } from "../components/ui";
 import Lightbox from "../components/Lightbox";
+import Referencias from "../components/Referencias";
 
 type Dialogo =
   | { tipo: "editar" }
@@ -216,6 +217,7 @@ export default function Campana() {
       </section>
 
       {c.notas && <div className="notes"><Pencil size={15} /><span><b>Notas de estilo:</b> {c.notas}</span></div>}
+      <Referencias c={c} onCambio={setC} />
       <div className="dropzone" onClick={() => elegir()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && elegir()}>
         <span className="dropzone-icon">{subiendo ? <Loader2 size={20} className="spin" /> : <UploadCloud size={20} />}</span>
         <div className="stack gap-4 grow">

@@ -170,6 +170,30 @@ async def subir(request: Request) -> Response:
 
 
 @auth.requiere_sesion
+async def subir_referencia(request: Request) -> Response:
+    cid = request.path_params["cid"]
+    try:
+        form = await request.form(max_files=6, max_part_size=config.MAX_BYTES)
+        lista = form.getlist("archivo")
+        if not lista:
+            raise db.Invalido("No llegó ningún archivo.")
+        for f in lista:
+            await asyncio.to_thread(db.agregar_referencia, cid, await f.read())
+        return JSONResponse(await asyncio.to_thread(db.obtener_campana, cid))
+    except Exception as e:
+        return _error(e)
+
+
+@auth.requiere_sesion
+async def quitar_referencia(request: Request) -> Response:
+    try:
+        c = await asyncio.to_thread(db.quitar_referencia, request.path_params["cid"], request.path_params["rid"])
+        return JSONResponse(c)
+    except Exception as e:
+        return _error(e)
+
+
+@auth.requiere_sesion
 async def quitar_imagen(request: Request) -> Response:
     try:
         c = await asyncio.to_thread(db.quitar_imagen, request.path_params["cid"], int(request.path_params["n"]))
@@ -242,6 +266,8 @@ rutas = [
     Route("/api/campanas/{cid}/imagenes", subir, methods=["POST"]),
     Route("/api/campanas/{cid}/prompts/{n:int}/imagen", quitar_imagen, methods=["DELETE"]),
     Route("/api/campanas/{cid}/zip", zip_campana, methods=["GET"]),
+    Route("/api/campanas/{cid}/referencias", subir_referencia, methods=["POST"]),
+    Route("/api/campanas/{cid}/referencias/{rid}", quitar_referencia, methods=["DELETE"]),
     Route("/api/imagenes", imagenes, methods=["GET"]),
     Route("/i/t/{archivo}", miniatura_publica, methods=["GET"]),
     Route("/i/{archivo}", imagen_publica, methods=["GET"]),

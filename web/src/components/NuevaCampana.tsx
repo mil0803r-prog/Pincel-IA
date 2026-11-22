@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { api, separarPrompts } from "../api";
 import { Modal, useToast } from "./ui";
 
@@ -8,6 +8,7 @@ export default function NuevaCampana({ onCerrar }: { onCerrar: () => void }) {
   const [nombre, setNombre] = useState("");
   const [notas, setNotas] = useState("");
   const [prompts, setPrompts] = useState("");
+  const [refs, setRefs] = useState<File[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState("");
   const nav = useNavigate();
@@ -19,6 +20,7 @@ export default function NuevaCampana({ onCerrar }: { onCerrar: () => void }) {
     setError("");
     try {
       const c = await api.crearCampana(nombre, prompts, notas);
+      if (refs.length) await api.subirReferencias(c.id, refs).catch(() => toast("La campaña se creó, pero no se pudo subir el mockup", "error"));
       toast("Campaña creada");
       nav(`/campanas/${c.id}`);
     } catch (e) {
@@ -64,6 +66,25 @@ export default function NuevaCampana({ onCerrar }: { onCerrar: () => void }) {
       <div className="field">
         <label htmlFor="nc-notas">Notas de estilo <span className="subtle">(opcional)</span></label>
         <input id="nc-notas" className="input" placeholder="Ej. Formato vertical 9:16, colores de marca rosa y dorado" value={notas} onChange={(e) => setNotas(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Producto de referencia <span className="subtle">(opcional)</span></label>
+        <div className="refs-row">
+          {refs.map((f, i) => (
+            <div className="ref" key={i}>
+              <img src={URL.createObjectURL(f)} alt="" />
+              <button type="button" className="ref-x" aria-label="Quitar" onClick={() => setRefs(refs.filter((_, j) => j !== i))}><X size={13} /></button>
+            </div>
+          ))}
+          {refs.length < 6 && (
+            <label className="ref ref-add" htmlFor="nc-refs">
+              <ImagePlus size={20} />
+              <span className="small">Subir mockup</span>
+            </label>
+          )}
+        </div>
+        <input id="nc-refs" type="file" accept="image/*" multiple hidden onChange={(e) => { setRefs([...refs, ...[...(e.target.files || [])]].slice(0, 6)); e.target.value = ""; }} />
+        <span className="hint">ChatGPT usará este producto exacto en todas las imágenes.</span>
       </div>
       {error && <span className="error-text">{error}</span>}
     </Modal>

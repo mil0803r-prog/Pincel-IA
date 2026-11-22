@@ -31,7 +31,8 @@ export type CampanaResumen = {
 };
 
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
-export type Campana = CampanaResumen & { prompts: Prompt[] };
+export type Referencia = { id: string; url: string; ruta: string; ruta_miniatura: string; ancho: number; alto: number };
+export type Campana = CampanaResumen & { prompts: Prompt[]; referencias: Referencia[] };
 
 export type Resumen = {
   campanas: number;
@@ -81,6 +82,12 @@ const apiReal = {
     pedir<Campana>(`/api/campanas/${id}/prompts`, { method: "POST", body: json({ prompts }) }),
   editarPrompt: (id: string, n: number, texto: string) =>
     pedir<Campana>(`/api/campanas/${id}/prompts/${n}`, { method: "PATCH", body: json({ texto }) }),
+  subirReferencias: (id: string, archivos: File[]) => {
+    const fd = new FormData();
+    archivos.forEach((f) => fd.append("archivo", f));
+    return pedir<Campana>(`/api/campanas/${id}/referencias`, { method: "POST", body: fd });
+  },
+  quitarReferencia: (id: string, rid: string) => pedir<Campana>(`/api/campanas/${id}/referencias/${rid}`, { method: "DELETE" }),
   quitarImagen: (id: string, n: number) => pedir<Campana>(`/api/campanas/${id}/prompts/${n}/imagen`, { method: "DELETE" }),
   subirImagenes: (id: string, archivos: File[], n?: number) => {
     const fd = new FormData();
