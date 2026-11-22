@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { FolderKanban, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, Plug, Search, Sun, type LucideIcon } from "lucide-react";
 import { Logo } from "./ui";
 import Paleta from "./Paleta";
+import { DEMO } from "../api";
 import NuevaCampana from "./NuevaCampana";
 
 /**
@@ -138,6 +139,12 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
             </button>
           </header>
           <main className="content">
+            {DEMO && (
+              <div className="demo-bar">
+                <span className="badge accent"><span className="dot" />Demo</span>
+                <span className="muted small">Datos de ejemplo que viven en tu navegador: puedes crear, subir y editar, pero nada se guarda al cerrar.</span>
+              </div>
+            )}
             <div className="page" key={loc.pathname}>
               <Outlet />
             </div>

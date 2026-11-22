@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { api } from "./api";
+import { api, DEMO } from "./api";
+
+const Router = DEMO ? MemoryRouter : BrowserRouter;
 import Layout from "./components/Layout";
 import { ToastProvider } from "./components/ui";
 import Login from "./pages/Login";
@@ -39,7 +41,7 @@ export default function App() {
       {!sesion ? (
         <Login onEntrar={() => setSesion(true)} />
       ) : (
-        <BrowserRouter>
+        <Router>
           <Routes>
             <Route element={<Layout onSalir={cerrar} />}>
               <Route index element={<Inicio />} />
@@ -50,7 +52,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
-        </BrowserRouter>
+        </Router>
       )}
     </ToastProvider>
   );

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:demo": "tsc --noEmit && vite build --mode demo --outDir ../demo-build --emptyOutDir"
   },
   "dependencies": {
     "lucide-react": "1.77.0",

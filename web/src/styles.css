@@ -546,3 +546,5 @@ em, .serif { font-family: var(--serif); font-style: italic; font-weight: 400; le
 
 /* rendimiento con campañas muy grandes: solo se pinta lo visible */
 .slot { content-visibility: auto; contain-intrinsic-size: auto 360px; }
+
+.demo-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 22px; border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }

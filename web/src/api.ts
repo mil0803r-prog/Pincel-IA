@@ -1,3 +1,5 @@
+import { crearApiDemo } from "./demo";
+
 export type Imagen = {
   id: string;
   campana_id: string;
@@ -62,7 +64,7 @@ async function pedir<T>(url: string, init: RequestInit = {}): Promise<T> {
 
 const json = (body: unknown) => JSON.stringify(body);
 
-export const api = {
+const apiReal = {
   sesion: () => pedir<{ autenticado: boolean }>("/api/sesion"),
   login: (clave: string) => pedir("/api/login", { method: "POST", body: json({ clave }) }),
   logout: () => pedir("/api/logout", { method: "POST" }),
@@ -128,3 +130,9 @@ export function peso(bytes: number): string {
   if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
   return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
 }
+
+/** Modo demo (compilado con `npm run build:demo`): todo funciona en el navegador con datos de ejemplo. */
+export const DEMO = Boolean(import.meta.env.VITE_DEMO);
+
+type Api = typeof apiReal & { simularChatGPT?: (id: string) => Promise<boolean> };
+export const api: Api = DEMO ? (crearApiDemo(separarPrompts) as unknown as Api) : apiReal;

@@ -18,7 +18,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { api, fecha, urlPublica, type Campana as TCampana, type Prompt } from "../api";
+import { api, DEMO, fecha, urlPublica, type Campana as TCampana, type Prompt } from "../api";
 import { Anillo, Confirmar, Estado, Menu, Modal, useCopiar, useToast } from "../components/ui";
 import Lightbox from "../components/Lightbox";
 
@@ -36,6 +36,21 @@ export default function Campana() {
   const [error, setError] = useState("");
   const [subiendo, setSubiendo] = useState<{ hechas: number; total: number } | null>(null);
   const [vista, setVista] = useState<"todas" | "faltan" | "listas">("todas");
+  const [simulando, setSimulando] = useState(false);
+  const simular = async () => {
+    if (!api.simularChatGPT) return;
+    setSimulando(true);
+    let n = 0;
+    try {
+      while (n < 8 && (await api.simularChatGPT(id))) {
+        n++;
+        await cargar();
+      }
+      toast(n ? `ChatGPT envió ${n} ${n === 1 ? "imagen" : "imágenes"}` : "No falta ninguna imagen");
+    } finally {
+      setSimulando(false);
+    }
+  };
   const [arrastrando, setArrastrando] = useState(false);
   const [visor, setVisor] = useState<number | null>(null);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
@@ -173,10 +188,15 @@ export default function Campana() {
               </div>
             </div>
             <div className="row gap-8">
+              {DEMO && c.hechas < c.total && (
+                <button className="btn" onClick={simular} disabled={simulando}>
+                  {simulando ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />} {simulando ? "ChatGPT enviando…" : "Simular ChatGPT"}
+                </button>
+              )}
               <button className="btn glow" onClick={() => copiar(frase, "Frase copiada: pégala en ChatGPT")}>
                 <MessageSquareText size={16} /> Copiar para ChatGPT
               </button>
-              <a className={`btn icon ${c.hechas ? "" : "disabled"}`} href={c.hechas ? `/api/campanas/${c.id}/zip` : undefined} aria-disabled={!c.hechas} title="Descargar ZIP" aria-label="Descargar ZIP">
+              <a className={`btn icon ${c.hechas ? "" : "disabled"}`} href={c.hechas && !DEMO ? `/api/campanas/${c.id}/zip` : undefined} onClick={DEMO ? () => toast("El ZIP se descarga en la versión publicada") : undefined} aria-disabled={!c.hechas} title="Descargar ZIP" aria-label="Descargar ZIP">
                 <Download size={16} />
               </a>
               <Menu boton={(abrir) => <button className="btn icon" onClick={abrir} aria-label="Más opciones"><MoreHorizontal size={18} /></button>}>

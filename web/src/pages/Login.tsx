@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, Loader2, Lock } from "lucide-react";
-import { api } from "../api";
+import { api, DEMO } from "../api";
 import { Logo } from "../components/ui";
 import { Fondo } from "../components/Layout";
 
@@ -48,7 +48,7 @@ export default function Login({ onEntrar }: { onEntrar: () => void }) {
         <form className="glass login-card" onSubmit={entrar}>
           <div className="stack gap-6">
             <h2>Bienvenido <em>de vuelta</em></h2>
-            <p className="muted small">Ingresa tu contraseña para entrar a tu estudio.</p>
+            <p className="muted small">{DEMO ? "Demo: escribe cualquier contraseña para entrar." : "Ingresa tu contraseña para entrar a tu estudio."}</p>
           </div>
           <div className="field">
             <label htmlFor="clave">Contraseña</label>
