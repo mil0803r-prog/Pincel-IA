@@ -39,6 +39,9 @@ Una campaña puede tener **cualquier cantidad de prompts e imágenes** (7, 150, 
 - **ChatGPT** trabaja **por lotes**: trae los siguientes prompts pendientes, crea esas imágenes, las envía y pide el siguiente lote, hasta que no falte ninguna. Si quieres que lo haga todo seguido, dile: *"continúa con todos los lotes hasta terminar, enviando cada uno a la plataforma"*.
 - **En la app** puedes arrastrar cientos de imágenes de una vez: se suben en tandas y ves el avance. La campaña tiene filtros (Todas / Faltan / Listas) y la biblioteca carga más imágenes a medida que bajas.
 
+## Botón "Enviar a ChatGPT"
+Dentro de cada campaña, el botón **Enviar a ChatGPT** abre ChatGPT con el mensaje ya escrito (nombre de la campaña, cuántos prompts faltan y la orden de subir cada imagen apenas se cree) y lo copia al portapapeles por si no se escribe solo. Solo tienes que **activar el conector Pincel IA en ese chat** (botón **+ → Pincel IA**) y pulsar enviar. Con el conector activo, ChatGPT trae los prompts, crea las imágenes y las sube solas, y los avisos llegan a la plataforma.
+
 ## Notificaciones en la plataforma
 Pincel IA te avisa solo, sin que tengas que recargar, cuando algo pasa:
 - **Claude** crea una campaña o agrega prompts.

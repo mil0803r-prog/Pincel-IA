@@ -8,6 +8,7 @@ import {
   ListPlus,
   Loader2,
   MessageSquareText,
+  Send,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -167,7 +168,10 @@ export default function Campana() {
 
   const conImagen = c.prompts.filter((p) => p.imagen);
   const visibles = c.prompts.filter((p) => (vista === "faltan" ? !p.imagen : vista === "listas" ? !!p.imagen : true));
-  const frase = `Trae la campaña ${c.nombre} de Pincel IA y crea las imágenes`;
+  const faltan = c.total - c.hechas;
+  // Mensaje que se le entrega a ChatGPT: usa el conector Pincel IA y trabaja todos los lotes sin esperar más órdenes
+  const frase = `Usa el conector Pincel IA. Trae la campaña "${c.nombre}" (id ${c.id}) y crea las imágenes de ${faltan > 0 ? `los ${faltan} prompts pendientes` : "todos los prompts"}, lote tras lote. Cada vez que termines una imagen, súbela de inmediato con subir_imagen a su número, sin esperar a que yo te lo pida. Al final dime cuántas quedaron cargadas.`;
+  const urlChatGPT = `https://chatgpt.com/?q=${encodeURIComponent(frase)}`;
   const todos = c.prompts.map((p) => `Imagen ${p.n}:\n${p.texto}`).join("\n\n");
 
   return (
@@ -198,9 +202,15 @@ export default function Campana() {
                   {simulando ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />} {simulando ? "ChatGPT enviando…" : "Simular ChatGPT"}
                 </button>
               )}
-              <button className="btn glow" onClick={() => copiar(frase, "Frase copiada: pégala en ChatGPT")}>
-                <MessageSquareText size={16} /> Copiar para ChatGPT
-              </button>
+              <a
+                className="btn glow"
+                href={urlChatGPT}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => copiar(frase, "Mensaje copiado. En ChatGPT activa el conector Pincel IA (+ → Pincel IA)")}
+              >
+                <Send size={16} /> Enviar a ChatGPT
+              </a>
               <a
                 className={`btn icon ${c.hechas ? "" : "disabled"}`}
                 href={c.hechas && !DEMO && !limiteSubida() ? `/api/campanas/${c.id}/zip` : undefined}
@@ -226,7 +236,8 @@ export default function Campana() {
               <Menu boton={(abrir) => <button className="btn icon" onClick={abrir} aria-label="Más opciones"><MoreHorizontal size={18} /></button>}>
                 {(cerrar) => (
                   <>
-                    <button onClick={() => { cerrar(); copiar(todos, "Prompts copiados"); }}><Copy size={16} /> Copiar todos los prompts</button>
+                    <button onClick={() => { cerrar(); copiar(frase, "Mensaje copiado"); }}><MessageSquareText size={16} /> Copiar mensaje para ChatGPT</button>
+              <button onClick={() => { cerrar(); copiar(todos, "Prompts copiados"); }}><Copy size={16} /> Copiar todos los prompts</button>
                     <button onClick={() => { cerrar(); setDialogo({ tipo: "editar" }); }}><Pencil size={16} /> Editar nombre y notas</button>
                     <button onClick={() => { cerrar(); setDialogo({ tipo: "agregar" }); }}><ListPlus size={16} /> Agregar prompts</button>
                     <hr />
