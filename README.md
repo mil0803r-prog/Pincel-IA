@@ -39,6 +39,14 @@ Una campaña puede tener **cualquier cantidad de prompts e imágenes** (7, 150, 
 - **ChatGPT** trabaja **por lotes**: trae los siguientes prompts pendientes, crea esas imágenes, las envía y pide el siguiente lote, hasta que no falte ninguna. Si quieres que lo haga todo seguido, dile: *"continúa con todos los lotes hasta terminar, enviando cada uno a la plataforma"*.
 - **En la app** puedes arrastrar cientos de imágenes de una vez: se suben en tandas y ves el avance. La campaña tiene filtros (Todas / Faltan / Listas) y la biblioteca carga más imágenes a medida que bajas.
 
+## Notificaciones en la plataforma
+Pincel IA te avisa solo, sin que tengas que recargar, cuando algo pasa:
+- **Claude** crea una campaña o agrega prompts.
+- **ChatGPT** recoge un lote de prompts y va enviando imágenes (se agrupan: "ChatGPT envió 6 imágenes · 6/20").
+- La **campaña queda completa**, o una imagen **no se pudo recibir** (con el motivo).
+
+Los avisos salen como mensaje emergente, en la **campanita** (arriba a la izquierda, con el número de sin leer), en el título de la pestaña y, si lo activas en el panel, como **aviso del navegador** aunque estés en otra pestaña. En **Conexiones** ves cuándo fue la última actividad de ChatGPT y de Claude, lo que confirma que el conector funciona.
+
 ## Lo que tienes que saber
 - **ChatGPT crea las imágenes una por una.** Si se detiene a mitad, dile "continúa". Tu plan tiene un límite de imágenes por periodo.
 - **El envío automático desde ChatGPT puede fallar.** Depende de cómo ChatGPT maneje los archivos, y eso cambia seguido. Si no puede, te da el link de la campaña: descargas las imágenes y las arrastras todas juntas.
@@ -81,7 +89,7 @@ Límites de Vercel que la app ya maneja:
 
 ## 2. Conectar ChatGPT y Claude
 Los pasos están dentro de la app, en **Conexiones**. En resumen:
-- **ChatGPT:** Configuración → Aplicaciones y conectores → Configuración avanzada → **Modo desarrollador** → Crear conector con la URL, sin autenticación.
+- **ChatGPT:** Configuración → Aplicaciones y conectores → Configuración avanzada → **Modo desarrollador** → Crear conector con la URL. En **Autenticación** elige **Sin autenticación** (no OAuth: la clave ya va dentro de la dirección).
 - **claude.ai / Claude Desktop:** Configuración → Conectores → Agregar conector personalizado.
 - **Claude Code:** `claude mcp add --transport http pincel-ia <URL del conector>`
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Copy, Eye, EyeOff, Info, ShieldCheck } from "lucide-react";
-import { api } from "../api";
+import { api, fecha, type Contacto } from "../api";
 import { Cabecera, Logo, useCopiar } from "../components/ui";
 
 const FRASES = [
@@ -14,12 +14,16 @@ const FRASES = [
 
 export default function Conexiones() {
   const [url, setUrl] = useState("");
+  const [contacto, setContacto] = useState<Contacto | null>(null);
   const [ver, setVer] = useState(false);
   const [tab, setTab] = useState<"chatgpt" | "claude">("chatgpt");
   const copiar = useCopiar();
 
   useEffect(() => {
-    api.conexion().then((d) => setUrl(d.url_mcp)).catch(() => {});
+    const cargar = () => api.conexion().then((d) => { setUrl(d.url_mcp); setContacto(d.ultimo_contacto); }).catch(() => {});
+    cargar();
+    const t = setInterval(cargar, 10000);
+    return () => clearInterval(t);
   }, []);
 
   const oculta = url.replace(/\/([^/]+)\/mcp$/, (_, t: string) => `/${"•".repeat(Math.min(t.length, 18))}/mcp`);
@@ -59,6 +63,26 @@ export default function Conexiones() {
         </div>
       </section>
 
+      <section className="section">
+        <div className="section-head">
+          <div className="stack gap-4">
+            <span className="eyebrow">Estado</span>
+            <h2>¿Están <em>conectados</em>?</h2>
+          </div>
+        </div>
+        <div className="estado-conexion">
+          {([["ChatGPT", contacto?.chatgpt], ["Claude", contacto?.claude]] as const).map(([nombre, ultimo]) => (
+            <div className="estado-item glass" key={nombre}>
+              <span className={`punto-estado ${ultimo ? "vivo" : ""}`} />
+              <div className="stack grow">
+                <b>{nombre}</b>
+                <span className="muted small">{ultimo ? `Última actividad ${fecha(ultimo)}` : "Todavía no se ha conectado"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="two-col section">
         <section className="glass">
           <div className="card-head">
@@ -72,7 +96,7 @@ export default function Conexiones() {
             {tab === "chatgpt" ? (
               <ol className="steps">
                 <li><span>En ChatGPT abre <b>Configuración → Aplicaciones y conectores → Configuración avanzada</b> y activa el <b>Modo desarrollador</b>. Requiere plan Plus, Pro o Business.</span></li>
-                <li><span>Pulsa <b>Crear</b> conector. Nombre: <b>Pincel IA</b>. URL: la de arriba. Autenticación: <b>Sin autenticación</b>.</span></li>
+                <li><span>Pulsa <b>Crear</b> conector. Nombre: <b>Pincel IA</b>. URL: la de arriba. En <b>Autenticación</b> elige <b>Sin autenticación</b> (no OAuth).</span></li>
                 <li><span>En un chat nuevo pulsa <b>+</b>, elige <b>Modo desarrollador</b> y activa <b>Pincel IA</b>.</span></li>
                 <li><span>Escribe: “Trae la campaña … de Pincel IA y crea las imágenes”.</span></li>
               </ol>

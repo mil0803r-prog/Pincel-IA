@@ -31,6 +31,21 @@ export type CampanaResumen = {
   miniaturas: string[];
 };
 
+export type Aviso = {
+  id: string;
+  tipo: "imagenes" | "trabajando" | "campana_creada" | "prompts" | "completa" | "error" | string;
+  origen: "chatgpt" | "claude" | "app" | string;
+  titulo: string;
+  detalle: string;
+  cantidad: number;
+  campana_id: string | null;
+  campana_nombre: string;
+  leida: boolean;
+  creado: string;
+};
+export type Avisos = { no_leidas: number; items: Aviso[] };
+export type Contacto = { chatgpt: string | null; claude: string | null };
+
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
 export type Referencia = { id: string; url: string; ruta: string; ruta_miniatura: string; ancho: number; alto: number };
 export type Campana = CampanaResumen & { prompts: Prompt[]; referencias: Referencia[] };
@@ -78,7 +93,10 @@ const apiReal = {
   login: (clave: string) => pedir("/api/login", { method: "POST", body: json({ clave }) }),
   logout: () => pedir("/api/logout", { method: "POST" }),
   resumen: () => pedir<Resumen>("/api/resumen"),
-  conexion: () => pedir<{ url_mcp: string; url_publica: string }>("/api/conexion"),
+  conexion: () => pedir<{ url_mcp: string; url_publica: string; ultimo_contacto: Contacto }>("/api/conexion"),
+  notificaciones: () => pedir<Avisos>("/api/notificaciones"),
+  leerNotificaciones: (ids?: string[]) =>
+    pedir<Avisos>("/api/notificaciones/leer", { method: "POST", body: json(ids ? { ids } : { todas: true }) }),
   campanas: (q = "") => pedir<CampanaResumen[]>(`/api/campanas${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   campana: (id: string) => pedir<Campana>(`/api/campanas/${id}`),
   crearCampana: (nombre: string, prompts: string, notas: string) =>

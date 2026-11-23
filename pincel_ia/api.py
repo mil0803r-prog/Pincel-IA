@@ -84,7 +84,23 @@ async def resumen(_: Request) -> Response:
 
 @auth.requiere_sesion
 async def conexion(_: Request) -> Response:
-    return JSONResponse({"url_mcp": config.URL_MCP, "url_publica": config.URL_PUBLICA})
+    contacto = await asyncio.to_thread(db.ultimo_contacto)
+    return JSONResponse({"url_mcp": config.URL_MCP, "url_publica": config.URL_PUBLICA, "ultimo_contacto": contacto})
+
+
+@auth.requiere_sesion
+async def notificaciones(_: Request) -> Response:
+    return JSONResponse(await asyncio.to_thread(db.listar_notificaciones))
+
+
+@auth.requiere_sesion
+async def leer_notificaciones(request: Request) -> Response:
+    try:
+        datos = await _json(request)
+        ids = None if datos.get("todas") else [str(i) for i in (datos.get("ids") or [])]
+        return JSONResponse(await asyncio.to_thread(db.marcar_leidas, ids))
+    except Exception as e:
+        return _error(e)
 
 
 @auth.requiere_sesion
@@ -265,6 +281,8 @@ rutas = [
     Route("/api/logout", logout, methods=["POST"]),
     Route("/api/resumen", resumen, methods=["GET"]),
     Route("/api/conexion", conexion, methods=["GET"]),
+    Route("/api/notificaciones", notificaciones, methods=["GET"]),
+    Route("/api/notificaciones/leer", leer_notificaciones, methods=["POST"]),
     Route("/api/campanas", campanas, methods=["GET", "POST"]),
     Route("/api/campanas/{cid}", campana, methods=["GET", "PATCH", "DELETE"]),
     Route("/api/campanas/{cid}/prompts", agregar_prompts, methods=["POST"]),

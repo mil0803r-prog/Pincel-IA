@@ -47,6 +47,18 @@ CREATE TABLE IF NOT EXISTS referencias (
     alto       INTEGER NOT NULL,
     creado     TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id             TEXT PRIMARY KEY,
+    tipo           TEXT NOT NULL,
+    origen         TEXT NOT NULL,
+    campana_id     TEXT REFERENCES campanas(id) ON DELETE CASCADE,
+    campana_nombre TEXT NOT NULL DEFAULT '',
+    cantidad       INTEGER NOT NULL DEFAULT 1,
+    detalle        TEXT NOT NULL DEFAULT '',
+    leida          INTEGER NOT NULL DEFAULT 0,
+    creado         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_creado ON notificaciones(creado);
 CREATE INDEX IF NOT EXISTS idx_referencias_campana ON referencias(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_campana ON imagenes(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_creado ON imagenes(creado);
@@ -251,6 +263,8 @@ def crear_campana(nombre: str, prompts: list[str], notas: str = "", origen: str 
             "INSERT INTO prompts (campana_id, n, texto) VALUES (?,?,?)",
             [(cid, i, p) for i, p in enumerate(prompts, 1)],
         )
+        if origen == "claude":
+            _notificar(con, "campana_creada", "claude", cid, nombre, f"{nombre} · {len(prompts)} prompts", len(prompts))
     return obtener_campana(cid)
 
 
@@ -329,7 +343,7 @@ def actualizar_prompt(cid: str, n: int, texto: str) -> dict:
     return obtener_campana(cid)
 
 
-def agregar_prompts(cid: str, prompts: list[str]) -> dict:
+def agregar_prompts(cid: str, prompts: list[str], origen: str = "app") -> dict:
     prompts = [p.strip() for p in prompts if p and p.strip()]
     if not prompts:
         raise Invalido("No llegó ningún prompt.")
@@ -341,6 +355,9 @@ def agregar_prompts(cid: str, prompts: list[str]) -> dict:
             [(cid, ultimo + i, p) for i, p in enumerate(prompts, 1)],
         )
         con.execute("UPDATE campanas SET actualizado = ? WHERE id = ?", (ahora(), cid))
+        if origen == "claude":
+            nombre = con.execute("SELECT nombre FROM campanas WHERE id = ?", (cid,)).fetchone()[0]
+            _notificar(con, "prompts", "claude", cid, nombre, f"{nombre} · hasta el #{ultimo + len(prompts)}", len(prompts))
     return obtener_campana(cid)
 
 
@@ -364,7 +381,8 @@ def guardar_imagen(cid: str, n: int | None, datos: bytes, origen: str) -> dict:
     info = archivos.procesar(datos)  # valida antes de tocar la base
     try:
         with conexion() as con:
-            if con.execute("SELECT 1 FROM campanas WHERE id = ?", (cid,)).fetchone() is None:
+            camp = con.execute("SELECT nombre FROM campanas WHERE id = ?", (cid,)).fetchone()
+            if camp is None:
                 raise NoEncontrado(f"No existe la campaña '{cid}'.")
             if n is None:
                 fila = con.execute(
@@ -391,12 +409,106 @@ def guardar_imagen(cid: str, n: int | None, datos: bytes, origen: str) -> dict:
                 con.execute("DELETE FROM imagenes WHERE id = ?", (puesto["imagen_id"],))
             con.execute("UPDATE campanas SET actualizado = ? WHERE id = ?", (ahora(), cid))
             nueva = con.execute("SELECT * FROM imagenes WHERE id = ?", (iid,)).fetchone()
+            if origen == "chatgpt":
+                total, hechas = con.execute(
+                    "SELECT COUNT(*), COUNT(imagen_id) FROM prompts WHERE campana_id = ?", (cid,)
+                ).fetchone()
+                _notificar(con, "imagenes", "chatgpt", cid, camp["nombre"], f"{camp['nombre']} · {hechas}/{total}", 1, agrupar=True)
+                if hechas == total:
+                    _notificar(con, "completa", "chatgpt", cid, camp["nombre"], f"{camp['nombre']} · {total} imágenes listas", total)
     except Exception:
         archivos.borrar(info["archivo"], info["miniatura"])
         raise
     if puesto["imagen_id"]:
         archivos.borrar(puesto["archivo"], puesto["miniatura"])
     return _imagen_dict(nueva)
+
+
+# ---------------------------------------------------------------- notificaciones
+
+def _notificar(con, tipo: str, origen: str, cid: str | None, nombre: str, detalle: str = "", cantidad: int = 1, agrupar: bool = False) -> None:
+    """Crea un aviso. Con `agrupar`, si ya hay uno igual sin leer de hace pocos minutos, lo actualiza (suma la cantidad)."""
+    ahora_dt = datetime.now(timezone.utc)
+    t = ahora_dt.isoformat(timespec="seconds")
+    if agrupar and cid:
+        corte = (ahora_dt - timedelta(minutes=15)).isoformat(timespec="seconds")
+        previo = con.execute(
+            "SELECT id, cantidad FROM notificaciones WHERE tipo = ? AND campana_id = ? AND leida = 0 AND creado >= ? "
+            "ORDER BY creado DESC LIMIT 1", (tipo, cid, corte),
+        ).fetchone()
+        if previo:
+            con.execute(
+                "UPDATE notificaciones SET cantidad = ?, detalle = ?, creado = ? WHERE id = ?",
+                (previo["cantidad"] + cantidad, detalle, t, previo["id"]),
+            )
+            return
+    con.execute(
+        "INSERT INTO notificaciones (id, tipo, origen, campana_id, campana_nombre, cantidad, detalle, leida, creado) "
+        "VALUES (?,?,?,?,?,?,?,0,?)",
+        (nuevo_id(), tipo, origen, cid, nombre, cantidad, detalle, t),
+    )
+    # los avisos de más de 30 días se limpian solos
+    con.execute("DELETE FROM notificaciones WHERE creado < ?", ((ahora_dt - timedelta(days=30)).isoformat(timespec="seconds"),))
+
+
+def avisar(tipo: str, origen: str, cid: str | None, detalle: str = "", cantidad: int = 1, agrupar: bool = False) -> None:
+    """Aviso desde fuera de una transacción (p. ej. el conector). Nunca interrumpe la operación principal."""
+    try:
+        with conexion() as con:
+            fila = con.execute("SELECT nombre FROM campanas WHERE id = ?", (cid,)).fetchone() if cid else None
+            _notificar(con, tipo, origen, cid if fila else None, fila["nombre"] if fila else "", detalle, cantidad, agrupar)
+    except Exception as e:  # un aviso fallido no debe romper el envío de imágenes
+        import sys
+        print(f"[pincel-ia] No se pudo crear el aviso: {e!r}", file=sys.stderr)
+
+
+def _titulo_aviso(tipo: str, origen: str, cantidad: int) -> str:
+    quien = "ChatGPT" if origen == "chatgpt" else "Claude" if origen == "claude" else "Pincel IA"
+    plural = "imagen" if cantidad == 1 else "imágenes"
+    return {
+        "imagenes": f"{quien} envió {cantidad} {plural}",
+        "trabajando": f"{quien} está creando imágenes",
+        "campana_creada": f"{quien} creó una campaña",
+        "prompts": f"{quien} agregó {cantidad} {'prompt' if cantidad == 1 else 'prompts'}",
+        "completa": "Campaña completa",
+        "error": f"{quien} no pudo enviar una imagen",
+    }.get(tipo, "Novedad")
+
+
+def listar_notificaciones(limite: int = 30) -> dict:
+    with conexion() as con:
+        filas = con.execute("SELECT * FROM notificaciones ORDER BY creado DESC, id LIMIT ?", (limite,)).fetchall()
+        no_leidas = con.execute("SELECT COUNT(*) FROM notificaciones WHERE leida = 0").fetchone()[0]
+    return {
+        "no_leidas": no_leidas,
+        "items": [
+            {
+                "id": f["id"], "tipo": f["tipo"], "origen": f["origen"], "titulo": _titulo_aviso(f["tipo"], f["origen"], f["cantidad"]),
+                "detalle": f["detalle"], "cantidad": f["cantidad"], "campana_id": f["campana_id"],
+                "campana_nombre": f["campana_nombre"], "leida": bool(f["leida"]), "creado": f["creado"],
+            }
+            for f in filas
+        ],
+    }
+
+
+def marcar_leidas(ids: list[str] | None = None) -> dict:
+    with conexion() as con:
+        if ids is None:
+            con.execute("UPDATE notificaciones SET leida = 1 WHERE leida = 0")
+        else:
+            for i in ids[:200]:
+                con.execute("UPDATE notificaciones SET leida = 1 WHERE id = ?", (i,))
+    return listar_notificaciones()
+
+
+def ultimo_contacto() -> dict:
+    """Cuándo fue la última actividad de cada asistente (sirve para saber si el conector funciona)."""
+    with conexion() as con:
+        def ultimo(origen: str):
+            f = con.execute("SELECT MAX(creado) FROM notificaciones WHERE origen = ?", (origen,)).fetchone()
+            return f[0] if f else None
+        return {"chatgpt": ultimo("chatgpt"), "claude": ultimo("claude")}
 
 
 def quitar_imagen(cid: str, n: int) -> dict:

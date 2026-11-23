@@ -2,7 +2,7 @@
  * Modo demo: la misma app funcionando 100% en el navegador, con datos de ejemplo
  * en memoria (sin servidor). Se activa al compilar con `npm run build:demo`.
  */
-import type { Campana, CampanaResumen, Imagen, Prompt, Referencia, Resumen } from "./api";
+import type { Aviso, Avisos, Campana, CampanaResumen, Imagen, Prompt, Referencia, Resumen } from "./api";
 
 type Producto = "frasco" | "perfume" | "zapatilla" | "taza" | "regalo";
 
@@ -132,6 +132,16 @@ const campanas: CampInterna[] = [
 ];
 campanas.sort((a, b) => (a.creado < b.creado ? 1 : -1));
 
+/* ---------------- avisos ---------------- */
+const avisos: Aviso[] = [];
+const nuevoAviso = (a: Omit<Aviso, "id" | "creado" | "leida">) => avisos.unshift({ ...a, id: uid(), creado: new Date().toISOString(), leida: false });
+const tituloAviso = (tipo: string, origen: string, n: number) => {
+  const quien = origen === "chatgpt" ? "ChatGPT" : "Claude";
+  return tipo === "imagenes" ? `${quien} envió ${n} ${n === 1 ? "imagen" : "imágenes"}` : tipo === "completa" ? "Campaña completa" : `${quien} creó una campaña`;
+};
+nuevoAviso({ tipo: "campana_creada", origen: "claude", titulo: tituloAviso("campana_creada", "claude", 1), detalle: `${campanas[0].nombre} · ${campanas[0].prompts.length} prompts`, cantidad: 1, campana_id: campanas[0].id, campana_nombre: campanas[0].nombre });
+avisos[0].creado = haceDias(0, 2);
+
 /* ---------------- utilidades ---------------- */
 const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const espera = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -173,7 +183,7 @@ export function crearApiDemo(separarPrompts: (t: string) => string[]) {
     sesion: async () => ({ autenticado: sesion }),
     login: async () => { await espera(400); sesion = true; return { ok: true }; },
     logout: async () => { sesion = false; return { ok: true }; },
-    conexion: async () => ({ url_mcp: "https://tu-app.onrender.com/TU-CLAVE-SECRETA/mcp", url_publica: "https://tu-app.onrender.com" }),
+    conexion: async () => ({ url_mcp: "https://tu-app.vercel.app/TU-CLAVE-SECRETA/mcp", url_publica: "https://tu-app.vercel.app", ultimo_contacto: { chatgpt: avisos.find((a) => a.origen === "chatgpt")?.creado ?? null, claude: avisos.find((a) => a.origen === "claude")?.creado ?? null } }),
     resumen: async (): Promise<Resumen> => {
       await espera();
       const imgs = campanas.flatMap((c) => c.prompts.filter((p) => p.imagen).map((p) => ({ img: p.imagen!, c, p })));
@@ -236,6 +246,11 @@ export function crearApiDemo(separarPrompts: (t: string) => string[]) {
       c.referencias = c.referencias.filter((r) => r.id !== rid);
       return completa(c);
     },
+    notificaciones: async (): Promise<Avisos> => ({ no_leidas: avisos.filter((a) => !a.leida).length, items: copia(avisos).slice(0, 30) }),
+    leerNotificaciones: async (ids?: string[]): Promise<Avisos> => {
+      avisos.forEach((a) => { if (!ids || ids.includes(a.id)) a.leida = true; });
+      return { no_leidas: avisos.filter((a) => !a.leida).length, items: copia(avisos).slice(0, 30) };
+    },
     quitarImagen: async (id: string, n: number) => {
       const p = buscar(id).prompts.find((x) => x.n === n);
       if (p) p.imagen = null;
@@ -275,6 +290,11 @@ export function crearApiDemo(separarPrompts: (t: string) => string[]) {
       if (!p) return false;
       await espera(900);
       p.imagen = crearImagen(c, p.n, "chatgpt", new Date().toISOString());
+      const hechas = c.prompts.filter((x) => x.imagen).length;
+      const previo = avisos.find((a) => a.tipo === "imagenes" && a.campana_id === c.id && !a.leida);
+      if (previo) { previo.cantidad += 1; previo.titulo = tituloAviso("imagenes", "chatgpt", previo.cantidad); previo.detalle = `${c.nombre} · ${hechas}/${c.prompts.length}`; previo.creado = new Date().toISOString(); }
+      else nuevoAviso({ tipo: "imagenes", origen: "chatgpt", titulo: tituloAviso("imagenes", "chatgpt", 1), detalle: `${c.nombre} · ${hechas}/${c.prompts.length}`, cantidad: 1, campana_id: c.id, campana_nombre: c.nombre });
+      if (hechas === c.prompts.length) nuevoAviso({ tipo: "completa", origen: "chatgpt", titulo: "Campaña completa", detalle: `${c.nombre} · ${hechas} imágenes listas`, cantidad: hechas, campana_id: c.id, campana_nombre: c.nombre });
       return true;
     },
   };

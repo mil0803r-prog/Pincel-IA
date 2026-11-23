@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { FolderKanban, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, Plug, Search, Sun, type LucideIcon } from "lucide-react";
-import { Logo } from "./ui";
+import { Logo, useToast } from "./ui";
+import { Campanita, PanelAvisos, avisosDelNavegadorActivos, useAvisos } from "./Avisos";
 import Paleta from "./Paleta";
-import { DEMO } from "../api";
+import { DEMO, type Aviso } from "../api";
 import NuevaCampana from "./NuevaCampana";
 
 /**
@@ -55,7 +56,10 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
   const [paleta, setPaleta] = useState(false);
   const [nueva, setNueva] = useState(false);
   const [tema, setTema] = useState<Tema>(temaInicial);
+  const [avisosAbierto, setAvisosAbierto] = useState(false);
   const loc = useLocation();
+  const nav = useNavigate();
+  const toast = useToast();
   const esMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
   useEffect(() => setAbierto(false), [loc.pathname]);
@@ -70,6 +74,32 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, []);
+
+  // avisos en vivo: aparecen como mensaje, en la campanita, en el título de la pestaña y (si lo activas) en el navegador
+  const alNuevoAviso = useCallback(
+    (a: Aviso) => {
+      if (document.hidden) {
+        if (avisosDelNavegadorActivos()) {
+          try { new Notification(a.titulo, { body: a.detalle, tag: a.id, icon: "/favicon.svg" }); } catch { /* sin permiso */ }
+        }
+        return;
+      }
+      toast(a.detalle ? `${a.titulo} · ${a.detalle}` : a.titulo, a.tipo === "error" ? "error" : "ok");
+    },
+    [toast],
+  );
+  const avisos = useAvisos(alNuevoAviso);
+  useEffect(() => {
+    document.title = avisos.no_leidas ? `(${avisos.no_leidas}) Pincel IA` : "Pincel IA";
+  }, [avisos.no_leidas]);
+  const abrirAviso = useCallback(
+    (a: Aviso) => {
+      avisos.leer([a.id]);
+      setAvisosAbierto(false);
+      if (a.campana_id) nav(`/campanas/${a.campana_id}`);
+    },
+    [avisos, nav],
+  );
 
   const cambiarTema = useCallback(() => setTema((t) => (t === "dark" ? "light" : "dark")), []);
   const nuevaCampana = useCallback(() => setNueva(true), []);
@@ -87,11 +117,14 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
               <span className="brand-tag">Estudio creativo</span>
             </div>
           </div>
-          <button className="searchbtn" onClick={() => setPaleta(true)}>
-            <Search size={15} />
-            <span>Buscar…</span>
-            <span className="kbd">{esMac ? "⌘" : "Ctrl"} K</span>
-          </button>
+          <div className="search-row">
+            <button className="searchbtn" onClick={() => setPaleta(true)}>
+              <Search size={15} />
+              <span>Buscar…</span>
+              <span className="kbd">{esMac ? "⌘" : "Ctrl"} K</span>
+            </button>
+            <Campanita className="bell-lado" noLeidas={avisos.no_leidas} abierto={avisosAbierto} onClick={() => setAvisosAbierto((v) => !v)} />
+          </div>
           <nav>
             {GRUPOS.map((g) => (
               <div key={g.titulo}>
@@ -134,6 +167,7 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
             </button>
             <Logo size={26} />
             <span className="brand-name grow">Pincel <em>IA</em></span>
+            <Campanita noLeidas={avisos.no_leidas} abierto={avisosAbierto} onClick={() => setAvisosAbierto((v) => !v)} />
             <button className="icon-btn" onClick={() => setPaleta(true)} aria-label="Buscar">
               <Search size={18} />
             </button>
@@ -151,6 +185,9 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
           </main>
         </div>
       </div>
+      {avisosAbierto && (
+        <PanelAvisos items={avisos.items} noLeidas={avisos.no_leidas} onLeer={avisos.leer} onAbrir={abrirAviso} onCerrar={() => setAvisosAbierto(false)} />
+      )}
       {paleta && <Paleta onCerrar={() => setPaleta(false)} onNueva={nuevaCampana} tema={tema} onTema={cambiarTema} />}
       {nueva && <NuevaCampana onCerrar={() => setNueva(false)} />}
     </AppCtx.Provider>

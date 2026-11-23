@@ -60,7 +60,7 @@ async def crear_campana(nombre: str, prompts: list[str], notas_estilo: str = "",
         referencias_url: Links públicos (https) a imágenes del producto (mockup, foto real, logo) para usarlas como
             referencia en todas las imágenes. Opcional.
     """
-    c = db.crear_campana(nombre, prompts, notas_estilo, origen="claude")
+    c = db.crear_campana(nombre, prompts, notas_estilo, origen="claude")  # avisa a la plataforma
     avisos = []
     for url in (referencias_url or [])[:6]:
         try:
@@ -124,6 +124,8 @@ def obtener_prompts(campana: str = "", cantidad: int = 10) -> list:
         "imagenes_cargadas": c["hechas"],
         "faltan_total": faltan,
     }
+    if lote:  # ChatGPT recogió trabajo: la plataforma lo muestra de inmediato
+        db.avisar("trabajando", "chatgpt", c["id"], f"{c['nombre']} · lote de {len(lote)}, faltan {faltan}", 1, agrupar=True)
     refs = c.get("referencias", [])
     if refs:
         base["referencias_producto"] = [r["url"] for r in refs]
@@ -192,7 +194,7 @@ def agregar_prompts(campana: str, prompts: list[str]) -> dict:
     """
     c = db.buscar_campana(campana)
     antes = c["total"]
-    c = db.agregar_prompts(c["id"], prompts)
+    c = db.agregar_prompts(c["id"], prompts, origen="claude")
     return {
         "campana": c["nombre"],
         "id": c["id"],
@@ -244,6 +246,8 @@ async def subir_imagen(campana: str, numero: int, imagen: dict | str) -> dict:
         datos = await _bytes_de(imagen)
         img = await asyncio.to_thread(db.guardar_imagen, c["id"], numero, datos, "chatgpt")
     except Exception as e:
+        motivo = str(e) if isinstance(e, (db.Invalido, db.NoEncontrado)) else "no se pudo leer o descargar el archivo"
+        db.avisar("error", "chatgpt", c["id"], f"{c['nombre']} · imagen #{numero}: {motivo}")
         return {
             "ok": False,
             "error": str(e),
