@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS notificaciones (
     creado         TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_notificaciones_creado ON notificaciones(creado);
+CREATE TABLE IF NOT EXISTS contactos (
+    cliente TEXT PRIMARY KEY,
+    nombre  TEXT NOT NULL DEFAULT '',
+    ultimo  TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_referencias_campana ON referencias(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_campana ON imagenes(campana_id);
 CREATE INDEX IF NOT EXISTS idx_imagenes_creado ON imagenes(creado);
@@ -502,13 +507,37 @@ def marcar_leidas(ids: list[str] | None = None) -> dict:
     return listar_notificaciones()
 
 
+def registrar_contacto(cliente: str, nombre: str = "") -> None:
+    """Anota que un cliente del conector (chatgpt, claude u otro) se comunicó con la plataforma."""
+    try:
+        with conexion() as con:
+            con.execute(
+                "INSERT INTO contactos (cliente, nombre, ultimo) VALUES (?,?,?) "
+                "ON CONFLICT (cliente) DO UPDATE SET ultimo = EXCLUDED.ultimo, nombre = EXCLUDED.nombre",
+                (cliente, nombre[:80], ahora()),
+            )
+    except Exception as e:  # llevar la cuenta nunca debe romper una llamada del conector
+        import sys
+        print(f"[pincel-ia] No se pudo registrar el contacto: {e!r}", file=sys.stderr)
+
+
 def ultimo_contacto() -> dict:
-    """Cuándo fue la última actividad de cada asistente (sirve para saber si el conector funciona)."""
+    """Cuándo se comunicó por última vez cada asistente (sirve para saber si el conector está conectado).
+
+    Cuenta tanto el simple contacto con el conector (al conectarlo) como la actividad real (avisos)."""
     with conexion() as con:
         def ultimo(origen: str):
-            f = con.execute("SELECT MAX(creado) FROM notificaciones WHERE origen = ?", (origen,)).fetchone()
-            return f[0] if f else None
-        return {"chatgpt": ultimo("chatgpt"), "claude": ultimo("claude")}
+            a = con.execute("SELECT MAX(creado) FROM notificaciones WHERE origen = ?", (origen,)).fetchone()[0]
+            b = con.execute("SELECT ultimo FROM contactos WHERE cliente = ?", (origen,)).fetchone()
+            candidatos = [x for x in (a, b[0] if b else None) if x]
+            return max(candidatos) if candidatos else None
+        otro = con.execute("SELECT nombre, ultimo FROM contactos WHERE cliente = 'otro'").fetchone()
+        return {
+            "chatgpt": ultimo("chatgpt"),
+            "claude": ultimo("claude"),
+            "otro": otro["ultimo"] if otro else None,
+            "otro_nombre": otro["nombre"] if otro else "",
+        }
 
 
 def quitar_imagen(cid: str, n: int) -> dict:

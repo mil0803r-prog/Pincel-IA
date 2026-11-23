@@ -71,12 +71,23 @@ export default function Conexiones() {
           </div>
         </div>
         <div className="estado-conexion">
-          {([["ChatGPT", contacto?.chatgpt], ["Claude", contacto?.claude]] as const).map(([nombre, ultimo]) => (
+          {([
+            ["ChatGPT", contacto?.chatgpt],
+            ["Claude", contacto?.claude],
+            ...(contacto?.otro ? ([[`Otro cliente${contacto.otro_nombre ? ` (${contacto.otro_nombre.split("/")[0]})` : ""}`, contacto.otro]] as const) : []),
+          ] as const).map(([nombre, ultimo]) => (
             <div className="estado-item glass" key={nombre}>
               <span className={`punto-estado ${ultimo ? "vivo" : ""}`} />
-              <div className="stack grow">
-                <b>{nombre}</b>
-                <span className="muted small">{ultimo ? `Última actividad ${fecha(ultimo)}` : "Todavía no se ha conectado"}</span>
+              <div className="stack grow gap-4">
+                <div className="row gap-8 wrap">
+                  <b>{nombre}</b>
+                  {ultimo ? (
+                    <span className="badge success"><span className="dot" />Conectado</span>
+                  ) : (
+                    <span className="badge">Sin conectar</span>
+                  )}
+                </div>
+                <span className="muted small">{ultimo ? `Última actividad ${fecha(ultimo)}` : "Todavía no se ha comunicado con Pincel IA"}</span>
               </div>
             </div>
           ))}

@@ -44,7 +44,7 @@ export type Aviso = {
   creado: string;
 };
 export type Avisos = { no_leidas: number; items: Aviso[] };
-export type Contacto = { chatgpt: string | null; claude: string | null };
+export type Contacto = { chatgpt: string | null; claude: string | null; otro?: string | null; otro_nombre?: string };
 
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
 export type Referencia = { id: string; url: string; ruta: string; ruta_miniatura: string; ancho: number; alto: number };
