@@ -15,6 +15,7 @@ import Conexiones from "./pages/Conexiones";
 import Landings from "./pages/Landings";
 import Landing from "./pages/Landing";
 import Mercado from "./pages/Mercado";
+import Habilidades from "./pages/Habilidades";
 
 export default function App() {
   const [sesion, setSesion] = useState<boolean | null>(null);
@@ -55,6 +56,7 @@ export default function App() {
               <Route path="landing" element={<Landings />} />
               <Route path="landing/:id" element={<Landing />} />
               <Route path="mercado" element={<Mercado />} />
+              <Route path="habilidades" element={<Habilidades />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { FolderKanban, Globe, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, PanelsTopLeft, Plug, Search, Sun, type LucideIcon } from "lucide-react";
+import { FolderKanban, Globe, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, PanelsTopLeft, Plug, Puzzle, Search, Sun, type LucideIcon } from "lucide-react";
 import { Logo, useToast } from "./ui";
 import { Campanita, PanelAvisos, avisosDelNavegadorActivos, useAvisos } from "./Avisos";
 import Paleta from "./Paleta";
@@ -28,7 +28,7 @@ const GRUPOS: { titulo: string; modulos: Modulo[] }[] = [
       { ruta: "/mercado", nombre: "Mercado", icono: Globe },
     ],
   },
-  { titulo: "Integraciones", modulos: [{ ruta: "/conexiones", nombre: "Conexiones", icono: Plug }] },
+  { titulo: "Integraciones", modulos: [{ ruta: "/conexiones", nombre: "Conexiones", icono: Plug }, { ruta: "/habilidades", nombre: "Habilidades", icono: Puzzle }] },
 ];
 
 type Tema = "light" | "dark";

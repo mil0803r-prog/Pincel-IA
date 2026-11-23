@@ -77,6 +77,11 @@ export type ResultadoImportar = {
 };
 export type Paquete = { nombre: string; archivos: { zip: string; ruta: string }[]; textos: Record<string, string>; completa: boolean };
 
+export type Herramienta = {
+  nombre: string; descripcion: string; seccion: string; para: "claude" | "chatgpt" | "ambos";
+  solo_lectura: boolean; parametros: { nombre: string; obligatorio: boolean }[];
+};
+
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
 export type Referencia = { id: string; url: string; ruta: string; ruta_miniatura: string; ancho: number; alto: number };
 export type Campana = CampanaResumen & { prompts: Prompt[]; referencias: Referencia[] };
@@ -125,6 +130,7 @@ const apiReal = {
   logout: () => pedir("/api/logout", { method: "POST" }),
   resumen: () => pedir<Resumen>("/api/resumen"),
   conexion: () => pedir<{ url_mcp: string; url_publica: string; ultimo_contacto: Contacto; registro?: RegistroConector[] }>("/api/conexion"),
+  habilidades: () => pedir<{ herramientas: Herramienta[]; total: number }>("/api/habilidades"),
   notificaciones: () => pedir<Avisos>("/api/notificaciones"),
   leerNotificaciones: (ids?: string[]) =>
     pedir<Avisos>("/api/notificaciones/leer", { method: "POST", body: json(ids ? { ids } : { todas: true }) }),

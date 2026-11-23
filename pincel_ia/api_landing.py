@@ -123,7 +123,43 @@ async def el_paquete(request: Request) -> Response:
         return _error(e)
 
 
+# A qué sección pertenece cada herramienta del conector y quién la usa (Claude, ChatGPT o ambos).
+_SECCION = {
+    "crear_campana": "Campañas", "agregar_prompts": "Campañas", "listar_campanas": "Campañas", "obtener_imagenes": "Campañas",
+    "obtener_prompts": "Campañas", "subir_imagen": "Campañas", "subir_referencia": "Campañas",
+    "obtener_mercado": "Landing", "crear_landing": "Landing", "importar_landing": "Landing", "registrar_auditoria": "Landing",
+    "estado_landing": "Landing", "obtener_ediciones": "Landing", "subir_edicion": "Landing",
+}
+_PARA = {"obtener_prompts": "chatgpt", "subir_imagen": "chatgpt", "obtener_ediciones": "chatgpt", "subir_edicion": "chatgpt", "subir_referencia": "ambos"}
+
+
+def _resumen_texto(descripcion: str) -> str:
+    antes = (descripcion or "").split("\n\nArgs:")[0].split("Args:")[0]
+    return " ".join(antes.split())[:320]
+
+
+@auth.requiere_sesion
+async def habilidades(_: Request) -> Response:
+    """Todas las herramientas que ofrece el conector, leídas del propio servidor (se actualizan solas)."""
+    from .conector import mcp
+
+    herramientas = []
+    for t in await mcp.list_tools():
+        esquema = t.input_schema or {}
+        obligatorios = set(esquema.get("required", []))
+        herramientas.append({
+            "nombre": t.name,
+            "descripcion": _resumen_texto(t.description or ""),
+            "seccion": _SECCION.get(t.name, "Otras"),
+            "para": _PARA.get(t.name, "claude"),
+            "solo_lectura": bool(t.annotations and t.annotations.read_only_hint),
+            "parametros": [{"nombre": k, "obligatorio": k in obligatorios} for k in esquema.get("properties", {})],
+        })
+    return JSONResponse({"herramientas": herramientas, "total": len(herramientas)})
+
+
 rutas = [
+    Route("/api/habilidades", habilidades, methods=["GET"]),
     Route("/api/mercado", mercado, methods=["GET", "PUT"]),
     Route("/api/landings", landings, methods=["GET", "POST"]),
     Route("/api/landings/{lid}", una_landing, methods=["GET", "PATCH", "DELETE"]),

@@ -2,7 +2,7 @@
  * Modo demo: la misma app funcionando 100% en el navegador, con datos de ejemplo
  * en memoria (sin servidor). Se activa al compilar con `npm run build:demo`.
  */
-import type { Aviso, Avisos, Campana, CampanaResumen, EstadoImagen, Imagen, ImagenLanding, Landing, LandingResumen, Mercado, Pendiente, Prompt, Referencia, Resumen, TipoLanding } from "./api";
+import type { Aviso, Avisos, Herramienta, Campana, CampanaResumen, EstadoImagen, Imagen, ImagenLanding, Landing, LandingResumen, Mercado, Pendiente, Prompt, Referencia, Resumen, TipoLanding } from "./api";
 
 type Producto = "frasco" | "perfume" | "zapatilla" | "taza" | "regalo";
 
@@ -331,6 +331,26 @@ export function crearApiDemo(separarPrompts: (t: string) => string[]) {
       const c = buscar(id);
       c.referencias = c.referencias.filter((r) => r.id !== rid);
       return completa(c);
+    },
+    habilidades: async () => {
+      const h = (nombre: string, seccion: string, para: Herramienta["para"], solo_lectura: boolean, descripcion: string, parametros: [string, boolean][]): Herramienta => ({ nombre, seccion, para, solo_lectura, descripcion, parametros: parametros.map(([n, o]) => ({ nombre: n, obligatorio: o })) });
+      const herramientas: Herramienta[] = [
+        h("crear_campana", "Campañas", "claude", false, "Guarda en Pincel IA una campaña con sus prompts de imagen para crearlos luego en ChatGPT.", [["nombre", true], ["prompts", true], ["notas_estilo", false], ["referencias_url", false]]),
+        h("agregar_prompts", "Campañas", "claude", false, "Agrega más prompts al final de una campaña existente (no hay límite de cantidad).", [["campana", true], ["prompts", true]]),
+        h("listar_campanas", "Campañas", "claude", true, "Lista las campañas más recientes de Pincel IA y cuántas imágenes tiene cada una.", [["limite", false]]),
+        h("obtener_imagenes", "Campañas", "claude", true, "Devuelve los links públicos de las imágenes de una campaña (por nombre o id; vacío = la última).", [["campana", false]]),
+        h("obtener_prompts", "Campañas", "chatgpt", true, "Trae el siguiente lote de prompts sin imagen de una campaña para crearlos. Se repite hasta terminar.", [["campana", false], ["cantidad", false]]),
+        h("subir_imagen", "Campañas", "chatgpt", false, "Envía a Pincel IA una imagen creada en esta conversación al puesto de su prompt.", [["campana", true], ["numero", true], ["imagen", true]]),
+        h("subir_referencia", "Campañas", "ambos", false, "Guarda una imagen de referencia del producto (mockup, foto real o logo) en una campaña.", [["campana", true], ["imagen", true]]),
+        h("obtener_mercado", "Landing", "claude", true, "Devuelve el mercado de venta configurado: país, moneda, idioma, tienda, transportadoras, pagos, envío y garantía.", []),
+        h("crear_landing", "Landing", "claude", false, "Crea una landing en Pincel IA para adaptarla al mercado.", [["nombre", true], ["url", false], ["notas", false]]),
+        h("importar_landing", "Landing", "claude", false, "Trae las imágenes de la página fuente en su orden real y mide los archivos originales.", [["landing", true], ["url", false], ["reemplazar", false]]),
+        h("registrar_auditoria", "Landing", "claude", false, "Registra el resultado de revisar la landing: clasificación, precios y qué hacer con cada imagen.", [["landing", true], ["tipo", false], ["precios_encontrados", false], ["precios_decision", false], ["precios_nuevos", false], ["notas", false], ["imagenes", false]]),
+        h("estado_landing", "Landing", "claude", true, "Estado de una landing: qué falta para entregarla y el detalle de cada imagen.", [["landing", false]]),
+        h("obtener_ediciones", "Landing", "chatgpt", true, "Trae las siguientes imágenes de una landing que hay que editar, con su instrucción y la imagen original.", [["landing", false], ["cantidad", false]]),
+        h("subir_edicion", "Landing", "chatgpt", false, "Envía la imagen editada de una posición de la landing; la plataforma compara su ancho y alto con el original.", [["landing", true], ["numero", true], ["imagen", true]]),
+      ];
+      return { herramientas, total: herramientas.length };
     },
     notificaciones: async (): Promise<Avisos> => ({ no_leidas: avisos.filter((a) => !a.leida).length, items: copia(avisos).slice(0, 30) }),
     leerNotificaciones: async (ids?: string[]): Promise<Avisos> => {
