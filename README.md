@@ -57,6 +57,9 @@ Herramientas del conector para landings: `obtener_mercado`, `crear_landing`, `im
 ## Botón "Enviar a ChatGPT"
 Dentro de cada campaña, el botón **Enviar a ChatGPT** abre ChatGPT con el mensaje ya escrito (nombre de la campaña, cuántos prompts faltan y la orden de subir cada imagen apenas se cree) y lo copia al portapapeles por si no se escribe solo. Solo tienes que **activar el conector Pincel IA en ese chat** (botón **+ → Pincel IA**) y pulsar enviar. Con el conector activo, ChatGPT trae los prompts, crea las imágenes y las sube solas, y los avisos llegan a la plataforma.
 
+## Si ChatGPT no encuentra una herramienta nueva
+ChatGPT guarda la lista de herramientas del conector al crearlo. Cuando se agregan herramientas nuevas (como las de Landing), hay que **actualizar el complemento** en *Configuración → Complementos → Pincel IA* (botón de actualizar) o eliminarlo y crearlo otra vez con la misma dirección y *Sin autenticación*; luego, abrir un chat nuevo y activar Pincel IA.
+
 ## Notificaciones en la plataforma
 Pincel IA te avisa solo, sin que tengas que recargar, cuando algo pasa:
 - **Claude** crea una campaña o agrega prompts.

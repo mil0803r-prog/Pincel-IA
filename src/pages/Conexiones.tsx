@@ -165,6 +165,19 @@ export default function Conexiones() {
         </section>
       </div>
 
+      <div className="callout section">
+        <Info size={18} />
+        <div className="stack gap-4 small">
+          <b>Si ChatGPT dice que no encuentra una herramienta</b>
+          <span className="muted">
+            ChatGPT guarda la lista de herramientas cuando creas el complemento. Cuando Pincel IA suma herramientas nuevas
+            (por ejemplo las de Landing: <code>obtener_ediciones</code> y <code>subir_edicion</code>), hay que <b>actualizar el complemento</b>:
+            en ChatGPT abre <b>Configuración → Complementos → Pincel IA</b> y pulsa el botón de <b>actualizar</b> (⟳). Si no aparece,
+            elimínalo y créalo otra vez con la misma dirección y <b>Sin autenticación</b>. Después abre un chat nuevo y activa Pincel IA.
+          </span>
+        </div>
+      </div>
+
       <div className="callout info section">
         <Info size={18} />
         <div className="stack gap-4 small">
