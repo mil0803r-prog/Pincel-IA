@@ -608,3 +608,8 @@ em, .serif { font-family: var(--serif); font-style: italic; font-weight: 400; le
 .bell-lado:hover, .bell-lado.on { border-color: var(--line-2); background: var(--panel-3); color: var(--text); }
 .avisos { top: 64px; bottom: auto; max-height: calc(100vh - 88px); }
 @media (max-width: 960px) { .avisos { top: auto; bottom: 12px; max-height: min(72vh, 620px); } }
+.registro { margin-top: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); padding: 4px 14px; }
+.registro summary { cursor: pointer; padding: 10px 0; font-size: 13px; color: var(--text-2); }
+.registro ul { list-style: none; margin: 0; padding: 0 0 8px; display: flex; flex-direction: column; gap: 6px; }
+.registro li { display: grid; grid-template-columns: 110px 100px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; font-size: 12.5px; align-items: center; }
+@media (max-width: 720px) { .registro li { grid-template-columns: 90px 1fr; } .registro li .ellipsis { display: none; } }

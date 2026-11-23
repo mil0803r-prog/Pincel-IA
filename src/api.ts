@@ -44,6 +44,7 @@ export type Aviso = {
   creado: string;
 };
 export type Avisos = { no_leidas: number; items: Aviso[] };
+export type RegistroConector = { creado: string; cliente: string; metodo: string; mcp_metodo: string; agente: string };
 export type Contacto = { chatgpt: string | null; claude: string | null; otro?: string | null; otro_nombre?: string };
 
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
@@ -93,7 +94,7 @@ const apiReal = {
   login: (clave: string) => pedir("/api/login", { method: "POST", body: json({ clave }) }),
   logout: () => pedir("/api/logout", { method: "POST" }),
   resumen: () => pedir<Resumen>("/api/resumen"),
-  conexion: () => pedir<{ url_mcp: string; url_publica: string; ultimo_contacto: Contacto }>("/api/conexion"),
+  conexion: () => pedir<{ url_mcp: string; url_publica: string; ultimo_contacto: Contacto; registro?: RegistroConector[] }>("/api/conexion"),
   notificaciones: () => pedir<Avisos>("/api/notificaciones"),
   leerNotificaciones: (ids?: string[]) =>
     pedir<Avisos>("/api/notificaciones/leer", { method: "POST", body: json(ids ? { ids } : { todas: true }) }),

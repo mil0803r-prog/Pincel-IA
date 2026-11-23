@@ -59,6 +59,15 @@ CREATE TABLE IF NOT EXISTS notificaciones (
     creado         TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_notificaciones_creado ON notificaciones(creado);
+CREATE TABLE IF NOT EXISTS conector_log (
+    id         TEXT PRIMARY KEY,
+    creado     TEXT NOT NULL,
+    cliente    TEXT NOT NULL,
+    metodo     TEXT NOT NULL DEFAULT '',
+    mcp_metodo TEXT NOT NULL DEFAULT '',
+    agente     TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_conector_log_creado ON conector_log(creado);
 CREATE TABLE IF NOT EXISTS contactos (
     cliente TEXT PRIMARY KEY,
     nombre  TEXT NOT NULL DEFAULT '',
@@ -468,13 +477,14 @@ def avisar(tipo: str, origen: str, cid: str | None, detalle: str = "", cantidad:
 
 
 def _titulo_aviso(tipo: str, origen: str, cantidad: int) -> str:
-    quien = "ChatGPT" if origen == "chatgpt" else "Claude" if origen == "claude" else "Pincel IA"
+    quien = {"chatgpt": "ChatGPT", "claude": "Claude", "otro": "Un cliente"}.get(origen, "Pincel IA")
     plural = "imagen" if cantidad == 1 else "imágenes"
     return {
         "imagenes": f"{quien} envió {cantidad} {plural}",
         "trabajando": f"{quien} está creando imágenes",
         "campana_creada": f"{quien} creó una campaña",
         "prompts": f"{quien} agregó {cantidad} {'prompt' if cantidad == 1 else 'prompts'}",
+        "conectado": f"{quien} se conectó",
         "completa": "Campaña completa",
         "error": f"{quien} no pudo enviar una imagen",
     }.get(tipo, "Novedad")
@@ -507,18 +517,45 @@ def marcar_leidas(ids: list[str] | None = None) -> dict:
     return listar_notificaciones()
 
 
-def registrar_contacto(cliente: str, nombre: str = "") -> None:
-    """Anota que un cliente del conector (chatgpt, claude u otro) se comunicó con la plataforma."""
+def registrar_contacto(cliente: str, nombre: str = "", metodo: str = "", agente: str = "", mcp_metodo: str = "") -> bool:
+    """Anota que un cliente del conector (chatgpt, claude u otro) se comunicó con la plataforma.
+
+    Si es la primera vez, o pasaron más de 10 minutos desde el último contacto, crea el aviso "se conectó".
+    Devuelve True cuando fue una conexión nueva."""
     try:
+        ahora_dt = datetime.now(timezone.utc)
+        t = ahora_dt.isoformat(timespec="seconds")
         with conexion() as con:
+            previo = con.execute("SELECT ultimo FROM contactos WHERE cliente = ?", (cliente,)).fetchone()
             con.execute(
                 "INSERT INTO contactos (cliente, nombre, ultimo) VALUES (?,?,?) "
                 "ON CONFLICT (cliente) DO UPDATE SET ultimo = EXCLUDED.ultimo, nombre = EXCLUDED.nombre",
-                (cliente, nombre[:80], ahora()),
+                (cliente, nombre[:80], t),
             )
+            con.execute(
+                "INSERT INTO conector_log (id, creado, cliente, metodo, mcp_metodo, agente) VALUES (?,?,?,?,?,?)",
+                (nuevo_id(), t, cliente, metodo[:12], mcp_metodo[:60], agente[:120]),
+            )
+            con.execute("DELETE FROM conector_log WHERE creado < ?", ((ahora_dt - timedelta(days=7)).isoformat(timespec="seconds"),))
+            corte = (ahora_dt - timedelta(minutes=10)).isoformat(timespec="seconds")
+            es_nueva = previo is None or previo["ultimo"] < corte
+            if es_nueva:
+                _notificar(con, "conectado", cliente, None, "", "Ya puede crear y enviar imágenes", 1)
+            return es_nueva
     except Exception as e:  # llevar la cuenta nunca debe romper una llamada del conector
         import sys
         print(f"[pincel-ia] No se pudo registrar el contacto: {e!r}", file=sys.stderr)
+        return False
+
+
+def listar_registro(limite: int = 8) -> list[dict]:
+    """Lo último que llegó al conector (sirve para ver qué envía ChatGPT cuando algo no conecta)."""
+    with conexion() as con:
+        filas = con.execute("SELECT * FROM conector_log ORDER BY creado DESC, id LIMIT ?", (limite,)).fetchall()
+    return [
+        {"creado": f["creado"], "cliente": f["cliente"], "metodo": f["metodo"], "mcp_metodo": f["mcp_metodo"], "agente": f["agente"]}
+        for f in filas
+    ]
 
 
 def ultimo_contacto() -> dict:

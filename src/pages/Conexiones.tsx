@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Copy, Eye, EyeOff, Info, ShieldCheck } from "lucide-react";
-import { api, fecha, type Contacto } from "../api";
+import { api, fecha, type Contacto, type RegistroConector } from "../api";
 import { Cabecera, Logo, useCopiar } from "../components/ui";
 
 const FRASES = [
@@ -15,12 +15,13 @@ const FRASES = [
 export default function Conexiones() {
   const [url, setUrl] = useState("");
   const [contacto, setContacto] = useState<Contacto | null>(null);
+  const [registro, setRegistro] = useState<RegistroConector[]>([]);
   const [ver, setVer] = useState(false);
   const [tab, setTab] = useState<"chatgpt" | "claude">("chatgpt");
   const copiar = useCopiar();
 
   useEffect(() => {
-    const cargar = () => api.conexion().then((d) => { setUrl(d.url_mcp); setContacto(d.ultimo_contacto); }).catch(() => {});
+    const cargar = () => api.conexion().then((d) => { setUrl(d.url_mcp); setContacto(d.ultimo_contacto); setRegistro(d.registro ?? []); }).catch(() => {});
     cargar();
     const t = setInterval(cargar, 10000);
     return () => clearInterval(t);
@@ -92,6 +93,25 @@ export default function Conexiones() {
             </div>
           ))}
         </div>
+        <details className="registro">
+          <summary>Ver lo que ha recibido el conector</summary>
+          {registro.length === 0 ? (
+            <p className="muted small" style={{ padding: "10px 2px" }}>
+              Todavía no ha llegado ninguna petición. Si ya creaste el complemento en ChatGPT, revisa que la dirección sea exactamente la de arriba y que la protección de Vercel esté desactivada.
+            </p>
+          ) : (
+            <ul>
+              {registro.map((r, i) => (
+                <li key={i}>
+                  <span className="subtle">{fecha(r.creado)}</span>
+                  <b>{r.cliente === "chatgpt" ? "ChatGPT" : r.cliente === "claude" ? "Claude" : "Otro cliente"}</b>
+                  <span className="muted">{r.mcp_metodo || r.metodo || "—"}</span>
+                  <span className="subtle ellipsis">{r.agente}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
       </section>
 
       <div className="two-col section">

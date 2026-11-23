@@ -8,6 +8,7 @@ import {
   FolderPlus,
   ImagePlus,
   ListPlus,
+  Plug,
   Sparkles,
   X,
   type LucideIcon,
@@ -105,6 +106,7 @@ export function Campanita({ noLeidas, abierto, onClick, className = "icon-btn" }
 
 /* ---------------- panel ---------------- */
 const ICONOS: Record<string, { icono: LucideIcon; clase: string }> = {
+  conectado: { icono: Plug, clase: "ok" },
   imagenes: { icono: ImagePlus, clase: "gpt" },
   trabajando: { icono: Sparkles, clase: "gpt" },
   campana_creada: { icono: FolderPlus, clase: "claude" },

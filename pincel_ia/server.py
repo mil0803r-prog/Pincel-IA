@@ -56,11 +56,12 @@ _TOOLS_CHATGPT = {"obtener_prompts", "subir_imagen"}
 _TOOLS_CLAUDE = {"crear_campana", "agregar_prompts", "obtener_imagenes", "listar_campanas"}
 
 
-def _clasificar(nombre_cliente: str, user_agent: str, herramientas: set[str]) -> str:
+def _clasificar(nombre_cliente: str, user_agent: str, herramientas: set[str], pistas: str = "") -> str:
+    """Decide quién llama. `pistas` es todo el texto de la petición (cabeceras y cuerpo) en minúsculas."""
     texto = f"{nombre_cliente} {user_agent}".lower()
-    if any(k in texto for k in ("openai", "chatgpt")):
+    if any(k in texto for k in ("openai", "chatgpt")) or "openai" in pistas:
         return "chatgpt"
-    if any(k in texto for k in ("claude", "anthropic")):
+    if any(k in texto for k in ("claude", "anthropic")) or "anthropic" in pistas:
         return "claude"
     if herramientas & _TOOLS_CHATGPT and not herramientas & _TOOLS_CLAUDE:
         return "chatgpt"  # un cliente sin identificar que usa las herramientas de ChatGPT
@@ -73,44 +74,64 @@ def _registrar_contacto(scope, cuerpo: bytes) -> None:
     try:
         import json
 
-        agente = next((v.decode("latin-1") for k, v in scope.get("headers", []) if k == b"user-agent"), "")
-        datos = json.loads(cuerpo or b"null")
-        mensajes = datos if isinstance(datos, list) else [datos]
-        nombre, herramientas = "", set()
-        for m in mensajes:
+        cabeceras = [(k.decode("latin-1").lower(), v.decode("latin-1")) for k, v in scope.get("headers", [])]
+        agente = next((v for k, v in cabeceras if k == "user-agent"), "")
+        pistas = " ".join(f"{k} {v}" for k, v in cabeceras if k not in ("authorization", "cookie")).lower()
+        nombre, herramientas, metodos = "", set(), []
+        try:
+            datos = json.loads(cuerpo) if cuerpo else None
+        except ValueError:
+            datos = None
+        for m in (datos if isinstance(datos, list) else [datos]):
             if not isinstance(m, dict):
                 continue
+            metodos.append(str(m.get("method", "")))
             if m.get("method") == "initialize":
                 nombre = str(((m.get("params") or {}).get("clientInfo") or {}).get("name", ""))
             elif m.get("method") == "tools/call":
                 herramientas.add(str((m.get("params") or {}).get("name", "")))
-        cliente = _clasificar(nombre, agente, herramientas)
-        db.registrar_contacto(cliente, nombre or agente)
+        pistas += " " + cuerpo[:20000].decode("utf-8", "ignore").lower()
+        cliente = _clasificar(nombre, agente, herramientas, pistas)
+        db.registrar_contacto(cliente, nombre or agente, scope.get("method", ""), agente, ",".join(metodos))
     except Exception:
         pass  # llevar la cuenta nunca debe afectar al conector
 
 
 class RegistroContacto:
-    """Envuelve el conector MCP y anota cada comunicación (al conectar y al usarlo) para mostrar 'Conectado'."""
+    """Envuelve el conector MCP y anota cada comunicación para mostrar 'Conectado' y avisar 'se conectó'.
+
+    Se anota ANTES de responder: en hostings tipo Vercel el proceso puede congelarse en cuanto se envía la respuesta."""
 
     def __init__(self, app) -> None:
         self.app = app
 
     async def __call__(self, scope, receive, send) -> None:
-        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != f"/{config.TOKEN}/mcp":
+        ruta = f"/{config.TOKEN}/mcp"
+        if scope["type"] != "http" or scope["path"].rstrip("/") != ruta:
             return await self.app(scope, receive, send)
-        trozos: list[bytes] = []
+        if scope["path"] != ruta:  # tolera la barra final: /clave/mcp/
+            scope = {**scope, "path": ruta, "raw_path": ruta.encode()}
+        mensajes: list = []
+        cuerpo = b""
+        if scope["method"] == "POST":
+            while True:
+                m = await receive()
+                mensajes.append(m)
+                if m["type"] != "http.request":
+                    break
+                cuerpo += m.get("body", b"")
+                if not m.get("more_body") or len(cuerpo) > 4_000_000:
+                    break
+        await asyncio.to_thread(_registrar_contacto, scope, cuerpo[:65536])
+        pendientes = iter(mensajes)
 
-        async def recibir():
-            m = await receive()
-            if m["type"] == "http.request" and sum(map(len, trozos)) < 65536:
-                trozos.append(m.get("body", b""))
-            return m
+        async def repetir():
+            try:
+                return next(pendientes)
+            except StopIteration:
+                return await receive()
 
-        try:
-            await self.app(scope, recibir, send)
-        finally:
-            await asyncio.to_thread(_registrar_contacto, scope, b"".join(trozos))
+        await self.app(scope, repetir, send)
 
 
 def _app_mcp():
@@ -190,7 +211,7 @@ class AppVercel:
             print(f"[pincel-ia] No se pudo preparar la base de datos: {e!r}", file=sys.stderr)
             await JSONResponse({"error": "No se pudo conectar con la base de datos."}, status_code=503)(scope, receive, send)
             return
-        if scope["path"] == f"/{config.TOKEN}/mcp":
+        if scope["path"].rstrip("/") == f"/{config.TOKEN}/mcp":
             app = _app_mcp()
             async with app.router.lifespan_context(app):
                 await RegistroContacto(app)(scope, receive, send)

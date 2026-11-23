@@ -85,7 +85,8 @@ async def resumen(_: Request) -> Response:
 @auth.requiere_sesion
 async def conexion(_: Request) -> Response:
     contacto = await asyncio.to_thread(db.ultimo_contacto)
-    return JSONResponse({"url_mcp": config.URL_MCP, "url_publica": config.URL_PUBLICA, "ultimo_contacto": contacto})
+    registro = await asyncio.to_thread(db.listar_registro)
+    return JSONResponse({"url_mcp": config.URL_MCP, "url_publica": config.URL_PUBLICA, "ultimo_contacto": contacto, "registro": registro})
 
 
 @auth.requiere_sesion
