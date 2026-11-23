@@ -24,8 +24,12 @@ mcp = MCPServer(
         "material, textos exactos de la etiqueta y logo) para que salga idéntico, y guárdalo como imagen de referencia "
         "(`referencias_url` en `crear_campana`, o `subir_referencia`). Si no puedes adjuntar el archivo, pide al usuario "
         "que lo arrastre en la sección 'Producto de referencia' de la campaña (link `en_la_app`). "
-        "Desde ChatGPT: usa `obtener_prompts` (trae lotes de prompts pendientes), genera cada imagen con el prompt EXACTO, "
-        "envíalas con `subir_imagen` y vuelve a llamar `obtener_prompts` hasta que no falte ninguna."
+        "Desde ChatGPT: cuando el usuario pida crear una campaña, usa `obtener_prompts` y procesa todos los lotes. "
+        "Genera cada imagen con el prompt EXACTO y, en cuanto esté creada, envíala inmediatamente a `subir_imagen` "
+        "con el id de campaña y el número de prompt correspondiente; NO esperes a que el usuario diga 'enviar a la plataforma'. "
+        "Confirma cada carga solo cuando `subir_imagen` devuelva `ok=true`. Si falla, informa el error y no afirmes que quedó guardada. "
+        "Después consulta el siguiente lote hasta que `faltan_total` sea 0. Respeta las referencias, textos, etiquetas, logos, "
+        "composición, estilo y formato solicitados en la campaña."
     ),
 )
 
@@ -148,7 +152,7 @@ def obtener_prompts(campana: str = "", cantidad: int = 10) -> list:
             "Genera una imagen por cada prompt del lote, en orden, usando el texto EXACTO (no lo resumas ni lo cambies) "
             "y sin pedir confirmación entre imágenes. Antes de cada imagen escribe su número (ej. 'Imagen 12'). "
             + (f"Aplica a todas: {c['notas']}. " if c["notas"] else "")
-            + f"Cuando el usuario diga 'enviar a la plataforma', llama a `subir_imagen` una vez por cada imagen con campana='{c['id']}' y su número. "
+            + "INTEGRACIÓN AUTOMÁTICA: inmediatamente después de generar CADA imagen, llama a `subir_imagen` con el archivo de imagen, " + f"campana='{c['id']}' y numero igual al n del prompt. No esperes una orden adicional del usuario. " + "Comprueba que la respuesta sea ok=true antes de marcarla como cargada; si falla, comunica el error. "
             + (
                 f"Después de enviar este lote, llama otra vez a `obtener_prompts` con campana='{c['id']}' para traer el siguiente "
                 f"(quedarán {quedan_despues}). Si el usuario pidió hacerlo todo seguido, continúa lote tras lote sin esperar. "
@@ -234,7 +238,7 @@ async def _bytes_de(imagen: Any) -> bytes:
 
 @mcp.tool(annotations=ESCRITURA, meta={"openai/fileParams": ["imagen"]})
 async def subir_imagen(campana: str, numero: int, imagen: dict | str) -> dict:
-    """Envía a Pincel IA una imagen creada en esta conversación.
+    """Envía inmediatamente a Pincel IA una imagen creada en esta conversación al puesto exacto de su prompt.
 
     Args:
         campana: id de la campaña (lo da `obtener_prompts`).
