@@ -116,8 +116,10 @@ def _aligerar(im: Image.Image, tope: int) -> tuple[bytes, str]:
     raise ValueError("No se pudo reducir la imagen al tamaño permitido.")
 
 
-def procesar(datos: bytes) -> dict:
-    """Valida que sea una imagen real, la guarda y crea su miniatura WEBP."""
+def procesar(datos: bytes, conservar: bool = False) -> dict:
+    """Valida que sea una imagen real, la guarda y crea su miniatura WEBP.
+
+    Con `conservar` el archivo se guarda tal cual (sin aligerarlo) y se miden sus dimensiones reales."""
     from .db import Invalido
 
     if not datos:
@@ -136,7 +138,7 @@ def procesar(datos: bytes) -> dict:
 
     ext = FORMATOS[fmt]
     # En Vercel una respuesta de función no puede pasar de ~4,5 MB: las imágenes más pesadas se aligeran al guardar.
-    if config.LIMITE_SUBIDA and len(datos) > config.LIMITE_SUBIDA:
+    if not conservar and config.LIMITE_SUBIDA and len(datos) > config.LIMITE_SUBIDA:
         try:
             datos, ext = _aligerar(im, config.LIMITE_SUBIDA)
         except ValueError as e:
@@ -148,8 +150,10 @@ def procesar(datos: bytes) -> dict:
     miniatura = f"{iid}.webp"
     _guardar(archivo, datos, False)
 
+    ancho, alto = im.size  # dimensiones reales del archivo, sin girar por EXIF
     im = ImageOps.exif_transpose(im)
-    ancho, alto = im.size
+    if not conservar:
+        ancho, alto = im.size
     mini = im.convert("RGBA") if im.mode in ("P", "LA", "RGBA") else im.convert("RGB")
     mini.thumbnail((LADO_MINIATURA, LADO_MINIATURA))
     buf = io.BytesIO()

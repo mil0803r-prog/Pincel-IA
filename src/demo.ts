@@ -2,7 +2,7 @@
  * Modo demo: la misma app funcionando 100% en el navegador, con datos de ejemplo
  * en memoria (sin servidor). Se activa al compilar con `npm run build:demo`.
  */
-import type { Aviso, Avisos, Campana, CampanaResumen, Imagen, Prompt, Referencia, Resumen } from "./api";
+import type { Aviso, Avisos, Campana, CampanaResumen, EstadoImagen, Imagen, ImagenLanding, Landing, LandingResumen, Mercado, Pendiente, Prompt, Referencia, Resumen, TipoLanding } from "./api";
 
 type Producto = "frasco" | "perfume" | "zapatilla" | "taza" | "regalo";
 
@@ -142,6 +142,92 @@ const tituloAviso = (tipo: string, origen: string, n: number) => {
 nuevoAviso({ tipo: "campana_creada", origen: "claude", titulo: tituloAviso("campana_creada", "claude", 1), detalle: `${campanas[0].nombre} · ${campanas[0].prompts.length} prompts`, cantidad: 1, campana_id: campanas[0].id, campana_nombre: campanas[0].nombre });
 avisos[0].creado = haceDias(0, 2);
 
+/* ---------------- sección Landing (demo) ---------------- */
+type FinalD = { src: string; ancho: number; alto: number; estado: "ok" | "dimension"; nota: string };
+type ImgD = { id: string; n: number; src: string; ancho: number; alto: number; bytes: number; formato: string; rol: "banner" | "carrusel"; accion: "intacta" | "editar" | null; instruccion: string; hallazgos: string; final: FinalD | null };
+type LandD = { id: string; nombre: string; url: string; tipo: TipoLanding | null; precios_decision: "conservar" | "cambiar" | null; precios_nuevos: string; precios_encontrados: string; transportadoras_ok: string; notas: string; creado: string; imagenes: ImgD[] };
+
+const mercadoD: Record<string, string | null> = { pais: "Colombia", moneda: "COP", idioma: "español", tienda: "Mi tienda", transportadoras: null, medios_pago: "Pago contra entrega", condiciones_envio: null, garantia: "conservar" };
+const mercadoOut = (): Mercado => {
+  const faltan = ["pais", "moneda", "idioma"].filter((c) => !(mercadoD[c] || "").trim());
+  return { ...(mercadoD as unknown as Mercado), garantia: mercadoD.garantia || "conservar", actualizado: new Date().toISOString(), faltan, configurado: faltan.length === 0 };
+};
+
+function svgBanner(w: number, h: number, hue: number, titulo: string, precio: string): string {
+  const a = `hsl(${hue} 70% 88%)`, b = `hsl(${(hue + 30) % 360} 65% 62%)`, c = `hsl(${hue} 55% 28%)`;
+  return aDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>
+    <rect width="100%" height="100%" fill="url(#g)"/>
+    <rect x="0" y="${h * 0.06}" width="${w}" height="${h * 0.09}" fill="#d62839"/>
+    <text x="${w / 2}" y="${h * 0.125}" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${w * 0.07}" fill="#fff" text-anchor="middle">SÚPER OFERTA</text>
+    <text x="${w / 2}" y="${h * 0.38}" font-family="Georgia,serif" font-style="italic" font-size="${w * 0.1}" fill="${c}" text-anchor="middle">${titulo}</text>
+    <rect x="${w * 0.2}" y="${h * 0.5}" width="${w * 0.6}" height="${h * 0.22}" rx="${w * 0.03}" fill="#fff"/>
+    <text x="${w / 2}" y="${h * 0.65}" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${w * 0.1}" fill="${c}" text-anchor="middle">${precio}</text>
+    <rect x="${w * 0.08}" y="${h * 0.86}" width="${w * 0.1}" height="${w * 0.065}" fill="#fcd116"/><rect x="${w * 0.08}" y="${h * 0.86 + w * 0.0325}" width="${w * 0.1}" height="${w * 0.0163}" fill="#003893"/><rect x="${w * 0.08}" y="${h * 0.86 + w * 0.049}" width="${w * 0.1}" height="${w * 0.0163}" fill="#ce1126"/>
+    <text x="${w * 0.22}" y="${h * 0.86 + w * 0.045}" font-family="Arial,sans-serif" font-size="${w * 0.04}" fill="${c}">Envío a todo el país</text>
+  </svg>`);
+}
+
+const mkImg = (n: number, w: number, h: number, hue: number, titulo: string, precio: string): ImgD => ({
+  id: uid(), n, src: svgBanner(w, h, hue, titulo, precio), ancho: w, alto: h, bytes: 150000 + Math.round(azar() * 400000), formato: "png",
+  rol: "banner", accion: null, instruccion: "", hallazgos: "", final: null,
+});
+
+const landings: LandD[] = [(() => {
+  const imagenes = [
+    mkImg(1, 1080, 1800, 320, "Crema Glow", "$119.900"),
+    mkImg(2, 1080, 1200, 200, "Piel radiante", "2 x $150.000"),
+    mkImg(3, 1080, 1500, 40, "Ingredientes", "$89.900"),
+    mkImg(4, 1080, 900, 150, "Resultados", "-25%"),
+    mkImg(5, 1080, 1350, 270, "Testimonios", "$89.900"),
+    mkImg(6, 1080, 600, 10, "Pide la tuya hoy", "$89.900"),
+  ];
+  imagenes[0].accion = "editar"; imagenes[0].instruccion = "Cambiar el precio por $89.900 COP y la bandera de México por la de Colombia"; imagenes[0].hallazgos = "Precio $119.900 MXN. Bandera de México.";
+  imagenes[0].final = { src: svgBanner(1080, 1800, 320, "Crema Glow", "$89.900"), ancho: 1080, alto: 1800, estado: "ok", nota: "Mismas dimensiones que el original." };
+  imagenes[1].accion = "editar"; imagenes[1].instruccion = "Cambiar el precio del paquete por $129.900 COP";
+  imagenes[2].accion = "intacta"; imagenes[3].accion = "intacta"; imagenes[5].accion = "intacta"; imagenes[5].rol = "carrusel";
+  return { id: uid(), nombre: "Crema Glow · Colombia", url: "https://ejemplo.com/crema-glow", tipo: "imagenes", precios_decision: null, precios_nuevos: "", precios_encontrados: "$119.900 MXN\n2 x $150.000 MXN\nAhorra $29.800", transportadoras_ok: "", notas: "Adaptar de México a Colombia", creado: haceDias(1), imagenes } as LandD;
+})()];
+
+const estadoD = (i: ImgD): EstadoImagen => (!i.accion ? "sin_decidir" : i.accion === "intacta" ? "intacta" : !i.final ? "por_editar" : i.final.estado === "ok" ? "editada" : "dimension");
+const imgOut = (i: ImgD): ImagenLanding => ({
+  id: i.id, n: i.n, origen_url: "", ruta: i.src, ruta_miniatura: i.src, url: i.src, ancho: i.ancho, alto: i.alto, bytes: i.bytes, formato: i.formato,
+  rol: i.rol, accion: i.accion, instruccion: i.instruccion, hallazgos: i.hallazgos, estado: estadoD(i),
+  final: i.final ? { ruta: i.final.src, ruta_miniatura: i.final.src, url: i.final.src, ancho: i.final.ancho, alto: i.final.alto, bytes: 200000, estado: i.final.estado, nota: i.final.nota } : null,
+});
+const resumenL = (l: LandD): LandingResumen => {
+  const est = l.imagenes.map(estadoD);
+  return {
+    id: l.id, nombre: l.nombre, url: l.url, tipo: l.tipo, precios_decision: l.precios_decision, creado: l.creado, actualizado: haceDias(0),
+    total: l.imagenes.length, listas: est.filter((e) => e === "intacta" || e === "editada").length, a_editar: l.imagenes.filter((i) => i.accion === "editar").length,
+    sin_decidir: est.filter((e) => e === "sin_decidir").length, portada: l.imagenes[0]?.src ?? null, miniaturas: l.imagenes.slice(0, 4).map((i) => i.src),
+  };
+};
+const landingOut = (l: LandD): Landing => {
+  const base = resumenL(l);
+  const imgs = l.imagenes.map(imgOut);
+  const m = mercadoOut();
+  const p: Pendiente[] = [];
+  if (!imgs.length) p.push({ clave: "imagenes", texto: "Traer las imágenes de la landing, en orden." });
+  if (!m.configurado) p.push({ clave: "mercado", texto: `Configurar el mercado: ${m.faltan.join(", ")}.` });
+  if (!l.tipo) p.push({ clave: "tipo", texto: "Clasificar la landing (imágenes, ficha de producto o híbrida)." });
+  if (!l.precios_decision) p.push({ clave: "precios", texto: "Decidir si conservas o cambias los precios (se pregunta en cada landing)." });
+  else if (l.precios_decision === "cambiar" && !l.precios_nuevos.trim()) p.push({ clave: "precios_importes", texto: "Escribir los importes nuevos: elegiste cambiar los precios." });
+  const cuenta = (f: (i: ImagenLanding) => boolean) => imgs.filter(f).length;
+  const sin = cuenta((i) => i.estado === "sin_decidir"), sinIns = cuenta((i) => i.accion === "editar" && !i.instruccion.trim());
+  const por = cuenta((i) => i.estado === "por_editar"), dim = cuenta((i) => i.estado === "dimension");
+  if (sin) p.push({ clave: "sin_decidir", texto: `${sin} ${sin === 1 ? "imagen" : "imágenes"} sin decidir (intacta o editar).` });
+  if (sinIns) p.push({ clave: "sin_instruccion", texto: `${sinIns} para editar sin indicar qué cambiar.` });
+  if (por) p.push({ clave: "por_editar", texto: `${por} ${por === 1 ? "edición pendiente" : "ediciones pendientes"}.` });
+  if (dim) p.push({ clave: "dimension", texto: `${dim} con medidas distintas al original: hay que rehacerlas con la medida exacta.` });
+  return { ...base, precios_nuevos: l.precios_nuevos, precios_encontrados: l.precios_encontrados, transportadoras_ok: l.transportadoras_ok, notas: l.notas, imagenes: imgs, mercado: m, pendientes: p, lista: p.length === 0 };
+};
+const buscarL = (id: string) => {
+  const l = landings.find((x) => x.id === id);
+  if (!l) throw new Error("No existe la landing.");
+  return l;
+};
+
 /* ---------------- utilidades ---------------- */
 const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const espera = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -251,6 +337,54 @@ export function crearApiDemo(separarPrompts: (t: string) => string[]) {
       avisos.forEach((a) => { if (!ids || ids.includes(a.id)) a.leida = true; });
       return { no_leidas: avisos.filter((a) => !a.leida).length, items: copia(avisos).slice(0, 30) };
     },
+    mercado: async () => mercadoOut(),
+    guardarMercado: async (c: Record<string, string | null>) => { Object.entries(c).forEach(([k, v]) => { mercadoD[k] = (v || "").trim() || (k === "garantia" ? "conservar" : null); }); return mercadoOut(); },
+    landings: async () => { await espera(80); return landings.map(resumenL); },
+    crearLanding: async (nombre: string, url: string, notas: string) => {
+      if (!nombre.trim()) throw new Error("La landing necesita un nombre.");
+      const l: LandD = { id: uid(), nombre: nombre.trim(), url: url.trim(), tipo: null, precios_decision: null, precios_nuevos: "", precios_encontrados: "", transportadoras_ok: "", notas, creado: new Date().toISOString(), imagenes: [] };
+      landings.unshift(l);
+      return landingOut(l);
+    },
+    landing: async (id: string) => { await espera(80); return landingOut(buscarL(id)); },
+    editarLanding: async (id: string, c: Record<string, string | null>) => { Object.assign(buscarL(id), c); return landingOut(buscarL(id)); },
+    eliminarLanding: async (id: string) => { landings.splice(landings.indexOf(buscarL(id)), 1); return { ok: true }; },
+    importarLanding: async (id: string, url: string, reemplazar: boolean) => {
+      const l = buscarL(id);
+      if (l.imagenes.length && !reemplazar) throw new Error("Esta landing ya tiene imágenes. Confirma que quieres reemplazarlas para volver a importar.");
+      await espera(900);
+      l.url = url || l.url || "https://ejemplo.com/landing";
+      l.imagenes = [mkImg(1, 1080, 1800, 100, "Producto estrella", "$69.900"), mkImg(2, 1080, 1200, 20, "Beneficios", "2 x $120.000"), mkImg(3, 1080, 1500, 220, "Cómo se usa", "$69.900"), mkImg(4, 1080, 900, 300, "Garantía", "-30%"), mkImg(5, 1080, 600, 60, "Compra hoy", "$69.900")];
+      l.precios_encontrados = "$69.900 COP\n2 x $120.000 COP\nAhorra $19.800";
+      return { importadas: 5, omitidas: [{ url: "https://ejemplo.com/icono.png", motivo: "muy pequeña (40×40): parece un ícono" }], precios_texto: ["$69.900 COP", "2 x $120.000 COP", "$19.800"], tipo_sugerido: "imagenes" as TipoLanding, landing: landingOut(l) };
+    },
+    subirOriginales: async (id: string, archivos: File[]) => {
+      const l = buscarL(id);
+      let importadas = 0;
+      const errores: { origen: string; error: string }[] = [];
+      for (const f of archivos) {
+        try {
+          const info = await leerArchivo(f);
+          l.imagenes.push({ id: uid(), n: l.imagenes.length + 1, src: info.url, ancho: info.ancho, alto: info.alto, bytes: f.size, formato: (f.name.split(".").pop() || "png").toLowerCase(), rol: "banner", accion: null, instruccion: "", hallazgos: "", final: null });
+          importadas++;
+        } catch (e) { errores.push({ origen: f.name, error: (e as Error).message }); }
+      }
+      return { importadas, errores };
+    },
+    editarImagenLanding: async (id: string, n: number, c: Record<string, string | null>) => { Object.assign(buscarL(id).imagenes.find((i) => i.n === n)!, c); return landingOut(buscarL(id)); },
+    quitarImagenLanding: async (id: string, n: number) => { const l = buscarL(id); l.imagenes = l.imagenes.filter((i) => i.n !== n).map((i, k) => ({ ...i, n: k + 1 })); return landingOut(l); },
+    subirFinal: async (id: string, n: number, archivo: File) => {
+      const l = buscarL(id);
+      const o = l.imagenes.find((i) => i.n === n)!;
+      const info = await leerArchivo(archivo);
+      if (!o.accion) o.accion = "editar";
+      if (info.ancho === o.ancho && info.alto === o.alto) o.final = { src: info.url, ancho: o.ancho, alto: o.alto, estado: "ok", nota: "Mismas dimensiones que el original." };
+      else if (Math.abs(info.ancho / info.alto / (o.ancho / o.alto) - 1) <= 0.005) o.final = { src: info.url, ancho: o.ancho, alto: o.alto, estado: "ok", nota: `Reescalada de ${info.ancho}×${info.alto} a ${o.ancho}×${o.alto} px (misma proporción, sin deformar).` };
+      else o.final = { src: info.url, ancho: info.ancho, alto: info.alto, estado: "dimension", nota: `Llegó con ${info.ancho}×${info.alto} px y el original mide ${o.ancho}×${o.alto} px: la proporción no coincide. Pídele que la rehaga con la medida exacta ${o.ancho}×${o.alto} px.` };
+      return landingOut(l);
+    },
+    quitarFinal: async (id: string, n: number) => { buscarL(id).imagenes.find((i) => i.n === n)!.final = null; return landingOut(buscarL(id)); },
+    paquete: async (id: string) => { const l = landingOut(buscarL(id)); return { nombre: "landing", archivos: [], textos: {}, completa: l.lista }; },
     quitarImagen: async (id: string, n: number) => {
       const p = buscar(id).prompts.find((x) => x.n === n);
       if (p) p.imagen = null;

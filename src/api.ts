@@ -32,6 +32,7 @@ export type CampanaResumen = {
 };
 
 export type Aviso = {
+  landing_id?: string | null;
   id: string;
   tipo: "imagenes" | "trabajando" | "campana_creada" | "prompts" | "completa" | "error" | string;
   origen: "chatgpt" | "claude" | "app" | string;
@@ -46,6 +47,35 @@ export type Aviso = {
 export type Avisos = { no_leidas: number; items: Aviso[] };
 export type RegistroConector = { creado: string; cliente: string; metodo: string; mcp_metodo: string; agente: string };
 export type Contacto = { chatgpt: string | null; claude: string | null; otro?: string | null; otro_nombre?: string };
+
+export type Mercado = {
+  pais: string | null; moneda: string | null; idioma: string | null; tienda: string | null;
+  transportadoras: string | null; medios_pago: string | null; condiciones_envio: string | null;
+  garantia: string; actualizado: string | null; faltan: string[]; configurado: boolean;
+};
+export type FinalLanding = { ruta: string; ruta_miniatura: string; url: string; ancho: number; alto: number; bytes: number; estado: string; nota: string };
+export type EstadoImagen = "sin_decidir" | "intacta" | "por_editar" | "editada" | "dimension";
+export type ImagenLanding = {
+  id: string; n: number; origen_url: string; ruta: string; ruta_miniatura: string; url: string;
+  ancho: number; alto: number; bytes: number; formato: string; rol: "banner" | "carrusel";
+  accion: "intacta" | "editar" | null; instruccion: string; hallazgos: string;
+  final: FinalLanding | null; estado: EstadoImagen;
+};
+export type TipoLanding = "imagenes" | "ficha" | "hibrida";
+export type LandingResumen = {
+  id: string; nombre: string; url: string; tipo: TipoLanding | null; precios_decision: "conservar" | "cambiar" | null;
+  creado: string; actualizado: string; total: number; listas: number; a_editar: number; sin_decidir: number;
+  portada: string | null; miniaturas: string[];
+};
+export type Pendiente = { clave: string; texto: string };
+export type Landing = LandingResumen & {
+  precios_nuevos: string; precios_encontrados: string; transportadoras_ok: string; notas: string;
+  imagenes: ImagenLanding[]; mercado: Mercado; pendientes: Pendiente[]; lista: boolean;
+};
+export type ResultadoImportar = {
+  importadas: number; omitidas: { url: string; motivo: string }[]; precios_texto: string[]; tipo_sugerido: TipoLanding; landing: Landing;
+};
+export type Paquete = { nombre: string; archivos: { zip: string; ruta: string }[]; textos: Record<string, string>; completa: boolean };
 
 export type Prompt = { n: number; texto: string; imagen: Imagen | null };
 export type Referencia = { id: string; url: string; ruta: string; ruta_miniatura: string; ancho: number; alto: number };
@@ -130,6 +160,32 @@ const apiReal = {
       body: fd,
     });
   },
+  // ---- sección Landing
+  mercado: () => pedir<Mercado>("/api/mercado"),
+  guardarMercado: (cambios: Partial<Record<string, string | null>>) => pedir<Mercado>("/api/mercado", { method: "PUT", body: json(cambios) }),
+  landings: () => pedir<LandingResumen[]>("/api/landings"),
+  crearLanding: (nombre: string, url: string, notas: string) => pedir<Landing>("/api/landings", { method: "POST", body: json({ nombre, url, notas }) }),
+  landing: (id: string) => pedir<Landing>(`/api/landings/${id}`),
+  editarLanding: (id: string, cambios: Partial<Record<string, string | null>>) => pedir<Landing>(`/api/landings/${id}`, { method: "PATCH", body: json(cambios) }),
+  eliminarLanding: (id: string) => pedir(`/api/landings/${id}`, { method: "DELETE" }),
+  importarLanding: (id: string, url: string, reemplazar: boolean) =>
+    pedir<ResultadoImportar>(`/api/landings/${id}/importar`, { method: "POST", body: json({ url, reemplazar }) }),
+  subirOriginales: (id: string, archivos: File[]) => {
+    const fd = new FormData();
+    archivos.forEach((f) => fd.append("archivo", f));
+    return pedir<{ importadas: number; errores: { origen: string; error: string }[] }>(`/api/landings/${id}/imagenes`, { method: "POST", body: fd });
+  },
+  editarImagenLanding: (id: string, n: number, cambios: Partial<Record<string, string | null>>) =>
+    pedir<Landing>(`/api/landings/${id}/imagenes/${n}`, { method: "PATCH", body: json(cambios) }),
+  quitarImagenLanding: (id: string, n: number) => pedir<Landing>(`/api/landings/${id}/imagenes/${n}`, { method: "DELETE" }),
+  subirFinal: (id: string, n: number, archivo: File) => {
+    const fd = new FormData();
+    fd.append("archivo", archivo);
+    return pedir<Landing>(`/api/landings/${id}/imagenes/${n}/final`, { method: "POST", body: fd });
+  },
+  quitarFinal: (id: string, n: number) => pedir<Landing>(`/api/landings/${id}/imagenes/${n}/final`, { method: "DELETE" }),
+  paquete: (id: string) => pedir<Paquete>(`/api/landings/${id}/paquete`),
+
   imagenes: (campana?: string, desde = 0, limite = 60) => {
     const q = new URLSearchParams({ desde: String(desde), limite: String(limite) });
     if (campana) q.set("campana", campana);

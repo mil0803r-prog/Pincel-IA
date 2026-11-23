@@ -12,6 +12,9 @@ import Campanas from "./pages/Campanas";
 import Campana from "./pages/Campana";
 import Biblioteca from "./pages/Biblioteca";
 import Conexiones from "./pages/Conexiones";
+import Landings from "./pages/Landings";
+import Landing from "./pages/Landing";
+import Mercado from "./pages/Mercado";
 
 export default function App() {
   const [sesion, setSesion] = useState<boolean | null>(null);
@@ -49,6 +52,9 @@ export default function App() {
               <Route path="campanas/:id" element={<Campana />} />
               <Route path="biblioteca" element={<Biblioteca />} />
               <Route path="conexiones" element={<Conexiones />} />
+              <Route path="landing" element={<Landings />} />
+              <Route path="landing/:id" element={<Landing />} />
+              <Route path="mercado" element={<Mercado />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

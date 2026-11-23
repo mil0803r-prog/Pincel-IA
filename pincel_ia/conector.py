@@ -19,6 +19,10 @@ mcp = MCPServer(
     instructions=(
         "Pincel IA es la plataforma de campañas de imágenes del usuario. "
         "Desde Claude: usa `crear_campana` con TODOS los prompts de imagen juntos. "
+        "SECCIÓN LANDING (adaptar landings a un mercado): `obtener_mercado` primero (si faltan país, moneda e idioma, pregúntalos); "
+        "`crear_landing` / `importar_landing` traen las imágenes en orden con sus medidas; `registrar_auditoria` guarda la revisión; "
+        "pregunta SIEMPRE al usuario si conserva o cambia los precios en cada landing (no lo decidas por él). "
+        "ChatGPT edita las imágenes marcadas con `obtener_ediciones` y las envía con `subir_edicion`, conservando el ancho y alto exactos. "
         "Las campañas no tienen límite de prompts. "
         "Si el usuario envía un mockup o foto del producto: descríbelo con precisión en CADA prompt (forma, colores, "
         "material, textos exactos de la etiqueta y logo) para que salga idéntico, y guárdalo como imagen de referencia "
@@ -259,3 +263,6 @@ async def subir_imagen(campana: str, numero: int, imagen: dict | str) -> dict:
         }
     c = db.obtener_campana(c["id"])
     return {"ok": True, "numero": numero, "url": img["url"], **_resumen(c)}
+
+
+from . import conector_landing  # noqa: E402,F401  (registra las herramientas de la sección Landing)

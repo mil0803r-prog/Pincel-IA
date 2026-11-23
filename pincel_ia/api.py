@@ -297,3 +297,8 @@ rutas = [
     Route("/i/t/{archivo}", miniatura_publica, methods=["GET"]),
     Route("/i/{archivo}", imagen_publica, methods=["GET"]),
 ]
+
+
+from . import api_landing  # noqa: E402  (las rutas de la sección Landing)
+
+rutas += api_landing.rutas

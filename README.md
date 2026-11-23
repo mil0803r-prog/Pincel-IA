@@ -17,6 +17,7 @@
 | **Inicio** | Resumen: campañas, imágenes, pendientes, actividad de la semana y campañas recientes. |
 | **Campañas** | Cada promoción con sus prompts e imágenes. Arrastra imágenes (todas juntas o una por tarjeta), reemplaza, edita prompts, copia links públicos, descarga ZIP y copia la frase para ChatGPT. Se actualiza sola mientras ChatGPT envía imágenes. |
 | **Biblioteca** | Todas tus imágenes en un solo lugar, con filtro por campaña y visor a pantalla completa. |
+| **Landing** | Adaptar landings a tu mercado: importar sus imágenes, decidir qué se edita, verificar medidas y descargar el paquete de entrega. Incluye la página **Mercado**. |
 | **Conexiones** | La URL del conector, cómo conectarlo a ChatGPT y Claude, y frases listas para copiar. |
 
 Tiene inicio de sesión con contraseña, modo claro y oscuro, y funciona en el celular.
@@ -38,6 +39,20 @@ Una campaña puede tener **cualquier cantidad de prompts e imágenes** (7, 150, 
 - **Claude** crea la campaña con todos los prompts y puede seguir agregando más con `agregar_prompts`.
 - **ChatGPT** trabaja **por lotes**: trae los siguientes prompts pendientes, crea esas imágenes, las envía y pide el siguiente lote, hasta que no falte ninguna. Si quieres que lo haga todo seguido, dile: *"continúa con todos los lotes hasta terminar, enviando cada uno a la plataforma"*.
 - **En la app** puedes arrastrar cientos de imágenes de una vez: se suben en tandas y ves el avance. La campaña tiene filtros (Todas / Faltan / Listas) y la biblioteca carga más imágenes a medida que bajas.
+
+## Sección Landing
+Adapta una landing a tu mercado, con el flujo de la plantilla de trabajo:
+
+1. **Mercado** (menú *Landing → Mercado*): país de venta, moneda e idioma son obligatorios; tienda, transportadoras confirmadas, medios de pago y condiciones de envío se completan cuando hacen falta. Lo que no se sabe queda vacío, no se inventa.
+2. **Importar las imágenes**: pega la dirección de la landing y Pincel IA trae las imágenes en el orden de la página (con vista de móvil), incluidas las de carga diferida, `srcset`, `<picture>` y fondos CSS, y **mide cada archivo original**. Si la página las carga con JavaScript, las arrastras en orden.
+3. **Clasificar** por contenido visible (landing de imágenes, ficha de producto o híbrida) y **decidir imagen por imagen**: intacta o editar, con la instrucción de qué cambiar y si es banner o carrusel.
+4. **Precios**: se pregunta **siempre**, en cada landing, si se conservan o se cambian. Elegir "cambiar" exige los importes nuevos; sin ellos no se puede cerrar la entrega.
+5. **Editar solo lo necesario**: ChatGPT recibe las imágenes marcadas con su instrucción (botón *Enviar a ChatGPT*) y sube cada edición. La plataforma **compara su ancho y alto con el original**: si coincide, queda; si tiene la misma proporción, se reescala sin deformar; si la proporción cambia, **no se acepta** y hay que rehacerla (nunca se recorta ni se agregan márgenes).
+6. **Entrega** (botón *Descargar paquete*): `originales/`, `finales/` (banners numerados en su orden real, editados o intactos), `complementos/` (carruseles), más `brief.md`, `informe.md`, `GUIA.md` y `manifiesto.json`. Solo se marca como lista cuando no queda nada pendiente.
+
+Con *Revisión con Claude* se copia un mensaje para que Claude revise la landing con el conector (mira las imágenes, anota precios, banderas, transportadoras y registra la revisión). Por seguridad, Pincel IA no importa direcciones de redes internas.
+
+Herramientas del conector para landings: `obtener_mercado`, `crear_landing`, `importar_landing`, `registrar_auditoria`, `estado_landing`, `obtener_ediciones` y `subir_edicion`.
 
 ## Botón "Enviar a ChatGPT"
 Dentro de cada campaña, el botón **Enviar a ChatGPT** abre ChatGPT con el mensaje ya escrito (nombre de la campaña, cuántos prompts faltan y la orden de subir cada imagen apenas se cree) y lo copia al portapapeles por si no se escribe solo. Solo tienes que **activar el conector Pincel IA en ese chat** (botón **+ → Pincel IA**) y pulsar enviar. Con el conector activo, ChatGPT trae los prompts, crea las imágenes y las sube solas, y los avisos llegan a la plataforma.

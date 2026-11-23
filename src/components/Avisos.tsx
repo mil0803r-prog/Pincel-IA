@@ -5,6 +5,7 @@ import {
   BellRing,
   CheckCheck,
   CheckCircle2,
+  ClipboardCheck,
   FolderPlus,
   ImagePlus,
   ListPlus,
@@ -107,6 +108,10 @@ export function Campanita({ noLeidas, abierto, onClick, className = "icon-btn" }
 /* ---------------- panel ---------------- */
 const ICONOS: Record<string, { icono: LucideIcon; clase: string }> = {
   conectado: { icono: Plug, clase: "ok" },
+  edicion: { icono: ImagePlus, clase: "gpt" },
+  auditoria: { icono: ClipboardCheck, clase: "claude" },
+  landing_lista: { icono: CheckCircle2, clase: "ok" },
+  landing_error: { icono: AlertTriangle, clase: "err" },
   imagenes: { icono: ImagePlus, clase: "gpt" },
   trabajando: { icono: Sparkles, clase: "gpt" },
   campana_creada: { icono: FolderPlus, clase: "claude" },

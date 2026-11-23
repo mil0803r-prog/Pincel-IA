@@ -78,4 +78,7 @@ MAX_BYTES = 25 * 1024 * 1024
 # Tope de tamaño de una petición/respuesta de función. Vercel permite ~4,5 MB; dejamos margen.
 LIMITE_SUBIDA = int(os.environ.get("PINCEL_LIMITE_SUBIDA", 4_000_000 if VERCEL else 0))
 
+# Solo para pruebas locales: permite importar landings desde direcciones de la red interna (por defecto se bloquean).
+PERMITIR_REDES_PRIVADAS = os.environ.get("PINCEL_PERMITIR_REDES_PRIVADAS") == "1"
+
 URL_MCP = f"{URL_PUBLICA}/{TOKEN}/mcp"

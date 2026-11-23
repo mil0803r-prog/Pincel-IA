@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { FolderKanban, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, Plug, Search, Sun, type LucideIcon } from "lucide-react";
+import { FolderKanban, Globe, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, PanelsTopLeft, Plug, Search, Sun, type LucideIcon } from "lucide-react";
 import { Logo, useToast } from "./ui";
 import { Campanita, PanelAvisos, avisosDelNavegadorActivos, useAvisos } from "./Avisos";
 import Paleta from "./Paleta";
@@ -19,6 +19,13 @@ const GRUPOS: { titulo: string; modulos: Modulo[] }[] = [
       { ruta: "/", nombre: "Inicio", icono: LayoutDashboard },
       { ruta: "/campanas", nombre: "Campañas", icono: FolderKanban },
       { ruta: "/biblioteca", nombre: "Biblioteca", icono: Images },
+    ],
+  },
+  {
+    titulo: "Landing",
+    modulos: [
+      { ruta: "/landing", nombre: "Landings", icono: PanelsTopLeft },
+      { ruta: "/mercado", nombre: "Mercado", icono: Globe },
     ],
   },
   { titulo: "Integraciones", modulos: [{ ruta: "/conexiones", nombre: "Conexiones", icono: Plug }] },
@@ -96,7 +103,8 @@ export default function Layout({ onSalir }: { onSalir: () => void }) {
     (a: Aviso) => {
       avisos.leer([a.id]);
       setAvisosAbierto(false);
-      if (a.campana_id) nav(`/campanas/${a.campana_id}`);
+      if (a.landing_id) nav(`/landing/${a.landing_id}`);
+      else if (a.campana_id) nav(`/campanas/${a.campana_id}`);
     },
     [avisos, nav],
   );

@@ -5,7 +5,7 @@
  * las imágenes pesadas se reducen en el navegador y se reparten en tandas que caben en ese límite.
  */
 import { zipSync } from "fflate";
-import type { Campana } from "./api";
+import type { Campana, Paquete } from "./api";
 
 let limite = 0;
 export const fijarLimiteSubida = (bytes: number) => { limite = bytes || 0; };
@@ -88,6 +88,52 @@ export async function descargarZip(c: Campana, progreso?: (hechas: number, total
   const a = document.createElement("a");
   a.href = url;
   a.download = `${c.nombre.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "campana"}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/** Reparte archivos en tandas por peso SIN tocarlos (para originales de landings, que deben conservar sus medidas exactas). */
+export function tandasExactas(files: File[]): File[][] {
+  if (!limite) {
+    const t: File[][] = [];
+    for (let i = 0; i < files.length; i += 8) t.push(files.slice(i, i + 8));
+    return t;
+  }
+  const tope = limite * 0.9;
+  const tandas: File[][] = [];
+  let actual: File[] = [];
+  let peso = 0;
+  for (const f of files) {
+    if (actual.length && peso + f.size > tope) {
+      tandas.push(actual);
+      actual = [];
+      peso = 0;
+    }
+    actual.push(f);
+    peso += f.size;
+  }
+  if (actual.length) tandas.push(actual);
+  return tandas;
+}
+
+/** Descarga el paquete de entrega de una landing (originales, finales, complementos y documentos) como un ZIP. */
+export async function descargarPaquete(p: Paquete, progreso?: (hechas: number, total: number) => void): Promise<void> {
+  const contenido: Record<string, Uint8Array> = {};
+  let i = 0;
+  for (const a of p.archivos) {
+    const r = await fetch(a.ruta);
+    if (!r.ok) throw new Error(`No se pudo descargar ${a.zip}`);
+    contenido[a.zip] = new Uint8Array(await r.arrayBuffer());
+    progreso?.(++i, p.archivos.length);
+  }
+  for (const [nombre, texto] of Object.entries(p.textos)) contenido[nombre] = new TextEncoder().encode(texto);
+  const zip = zipSync(contenido, { level: 0 });
+  const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: "application/zip" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${p.nombre}${p.completa ? "" : "-incompleta"}.zip`;
   document.body.appendChild(a);
   a.click();
   a.remove();

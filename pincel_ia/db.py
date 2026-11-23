@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS notificaciones (
     cantidad       INTEGER NOT NULL DEFAULT 1,
     detalle        TEXT NOT NULL DEFAULT '',
     leida          INTEGER NOT NULL DEFAULT 0,
-    creado         TEXT NOT NULL
+    creado         TEXT NOT NULL,
+    landing_id     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_notificaciones_creado ON notificaciones(creado);
 CREATE TABLE IF NOT EXISTS conector_log (
@@ -68,6 +69,55 @@ CREATE TABLE IF NOT EXISTS conector_log (
     agente     TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_conector_log_creado ON conector_log(creado);
+CREATE TABLE IF NOT EXISTS mercado (
+    id                INTEGER PRIMARY KEY,
+    pais              TEXT,
+    moneda            TEXT,
+    idioma            TEXT,
+    tienda            TEXT,
+    transportadoras   TEXT,
+    medios_pago       TEXT,
+    condiciones_envio TEXT,
+    garantia          TEXT NOT NULL DEFAULT 'conservar',
+    actualizado       TEXT
+);
+CREATE TABLE IF NOT EXISTS landings (
+    id                 TEXT PRIMARY KEY,
+    nombre             TEXT NOT NULL,
+    url                TEXT NOT NULL DEFAULT '',
+    tipo               TEXT,
+    precios_decision   TEXT,
+    precios_nuevos     TEXT NOT NULL DEFAULT '',
+    precios_encontrados TEXT NOT NULL DEFAULT '',
+    transportadoras_ok TEXT NOT NULL DEFAULT '',
+    notas              TEXT NOT NULL DEFAULT '',
+    creado             TEXT NOT NULL,
+    actualizado        TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS landing_imagenes (
+    id             TEXT PRIMARY KEY,
+    landing_id     TEXT NOT NULL REFERENCES landings(id) ON DELETE CASCADE,
+    n              INTEGER NOT NULL,
+    origen_url     TEXT NOT NULL DEFAULT '',
+    archivo        TEXT NOT NULL,
+    miniatura      TEXT NOT NULL,
+    ancho          INTEGER NOT NULL,
+    alto           INTEGER NOT NULL,
+    bytes          INTEGER NOT NULL,
+    rol            TEXT NOT NULL DEFAULT 'banner',
+    accion         TEXT,
+    instruccion    TEXT NOT NULL DEFAULT '',
+    hallazgos      TEXT NOT NULL DEFAULT '',
+    final_archivo  TEXT,
+    final_miniatura TEXT,
+    final_ancho    INTEGER,
+    final_alto     INTEGER,
+    final_bytes    INTEGER,
+    final_estado   TEXT,
+    final_nota     TEXT NOT NULL DEFAULT '',
+    creado         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_landing_imagenes ON landing_imagenes(landing_id, n);
 CREATE TABLE IF NOT EXISTS contactos (
     cliente TEXT PRIMARY KEY,
     nombre  TEXT NOT NULL DEFAULT '',
@@ -180,6 +230,17 @@ def conexion() -> Iterator:
         con.close()
 
 
+def _migrar(con) -> None:
+    """Cambios para bases creadas antes de una versión (se pueden repetir sin problema)."""
+    if config.USA_POSTGRES:
+        con.execute("ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS landing_id TEXT")
+    else:
+        columnas = [f[1] for f in con.execute("PRAGMA table_info(notificaciones)").fetchall()]
+        if "landing_id" not in columnas:
+            con.execute("ALTER TABLE notificaciones ADD COLUMN landing_id TEXT")
+    con.execute("INSERT INTO mercado (id) VALUES (1) ON CONFLICT (id) DO NOTHING")
+
+
 def iniciar() -> None:
     if config.USA_POSTGRES:
         with conexion() as con:
@@ -188,9 +249,11 @@ def iniciar() -> None:
             for sentencia in (ESQUEMA + ESQUEMA_ARCHIVOS_PG).split(";"):
                 if sentencia.strip():
                     con.execute(sentencia)
+            _migrar(con)
         return
     with conexion() as con:
         con.executescript(ESQUEMA)
+        _migrar(con)
 
 
 class NoEncontrado(Exception):
@@ -440,15 +503,16 @@ def guardar_imagen(cid: str, n: int | None, datos: bytes, origen: str) -> dict:
 
 # ---------------------------------------------------------------- notificaciones
 
-def _notificar(con, tipo: str, origen: str, cid: str | None, nombre: str, detalle: str = "", cantidad: int = 1, agrupar: bool = False) -> None:
+def _notificar(con, tipo: str, origen: str, cid: str | None, nombre: str, detalle: str = "", cantidad: int = 1, agrupar: bool = False, landing_id: str | None = None) -> None:
     """Crea un aviso. Con `agrupar`, si ya hay uno igual sin leer de hace pocos minutos, lo actualiza (suma la cantidad)."""
     ahora_dt = datetime.now(timezone.utc)
     t = ahora_dt.isoformat(timespec="seconds")
-    if agrupar and cid:
+    if agrupar and (cid or landing_id):
         corte = (ahora_dt - timedelta(minutes=15)).isoformat(timespec="seconds")
+        columna, valor = ("landing_id", landing_id) if landing_id else ("campana_id", cid)
         previo = con.execute(
-            "SELECT id, cantidad FROM notificaciones WHERE tipo = ? AND campana_id = ? AND leida = 0 AND creado >= ? "
-            "ORDER BY creado DESC LIMIT 1", (tipo, cid, corte),
+            f"SELECT id, cantidad FROM notificaciones WHERE tipo = ? AND {columna} = ? AND leida = 0 AND creado >= ? "
+            "ORDER BY creado DESC LIMIT 1", (tipo, valor, corte),
         ).fetchone()
         if previo:
             con.execute(
@@ -457,20 +521,20 @@ def _notificar(con, tipo: str, origen: str, cid: str | None, nombre: str, detall
             )
             return
     con.execute(
-        "INSERT INTO notificaciones (id, tipo, origen, campana_id, campana_nombre, cantidad, detalle, leida, creado) "
-        "VALUES (?,?,?,?,?,?,?,0,?)",
-        (nuevo_id(), tipo, origen, cid, nombre, cantidad, detalle, t),
+        "INSERT INTO notificaciones (id, tipo, origen, campana_id, campana_nombre, cantidad, detalle, leida, creado, landing_id) "
+        "VALUES (?,?,?,?,?,?,?,0,?,?)",
+        (nuevo_id(), tipo, origen, cid, nombre, cantidad, detalle, t, landing_id),
     )
     # los avisos de más de 30 días se limpian solos
     con.execute("DELETE FROM notificaciones WHERE creado < ?", ((ahora_dt - timedelta(days=30)).isoformat(timespec="seconds"),))
 
 
-def avisar(tipo: str, origen: str, cid: str | None, detalle: str = "", cantidad: int = 1, agrupar: bool = False) -> None:
+def avisar(tipo: str, origen: str, cid: str | None, detalle: str = "", cantidad: int = 1, agrupar: bool = False, landing_id: str | None = None) -> None:
     """Aviso desde fuera de una transacción (p. ej. el conector). Nunca interrumpe la operación principal."""
     try:
         with conexion() as con:
             fila = con.execute("SELECT nombre FROM campanas WHERE id = ?", (cid,)).fetchone() if cid else None
-            _notificar(con, tipo, origen, cid if fila else None, fila["nombre"] if fila else "", detalle, cantidad, agrupar)
+            _notificar(con, tipo, origen, cid if fila else None, fila["nombre"] if fila else "", detalle, cantidad, agrupar, landing_id=landing_id)
     except Exception as e:  # un aviso fallido no debe romper el envío de imágenes
         import sys
         print(f"[pincel-ia] No se pudo crear el aviso: {e!r}", file=sys.stderr)
@@ -485,6 +549,10 @@ def _titulo_aviso(tipo: str, origen: str, cantidad: int) -> str:
         "campana_creada": f"{quien} creó una campaña",
         "prompts": f"{quien} agregó {cantidad} {'prompt' if cantidad == 1 else 'prompts'}",
         "conectado": f"{quien} se conectó",
+        "edicion": f"{quien} envió {cantidad} {'edición' if cantidad == 1 else 'ediciones'} de landing",
+        "auditoria": f"{quien} registró la revisión de una landing",
+        "landing_lista": "Landing lista para entregar",
+        "landing_error": f"{quien} envió una edición con otra medida",
         "completa": "Campaña completa",
         "error": f"{quien} no pudo enviar una imagen",
     }.get(tipo, "Novedad")
@@ -501,6 +569,7 @@ def listar_notificaciones(limite: int = 30) -> dict:
                 "id": f["id"], "tipo": f["tipo"], "origen": f["origen"], "titulo": _titulo_aviso(f["tipo"], f["origen"], f["cantidad"]),
                 "detalle": f["detalle"], "cantidad": f["cantidad"], "campana_id": f["campana_id"],
                 "campana_nombre": f["campana_nombre"], "leida": bool(f["leida"]), "creado": f["creado"],
+                "landing_id": f["landing_id"],
             }
             for f in filas
         ],
