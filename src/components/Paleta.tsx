@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FolderKanban, Globe, Images, LayoutDashboard, Moon, PanelsTopLeft, Plug, Plus, Puzzle, Search, Sun } from "lucide-react";
+import { Clapperboard, FolderKanban, Globe, Images, LayoutDashboard, Moon, PanelsTopLeft, Plug, Plus, Puzzle, Search, Sun } from "lucide-react";
 import { api, type CampanaResumen } from "../api";
 
 type Accion = { id: string; grupo: string; texto: string; icono: React.ReactNode; hacer: () => void; extra?: string };
@@ -35,6 +35,7 @@ export default function Paleta({
       { id: "inicio", grupo: "Ir a", texto: "Inicio", icono: <LayoutDashboard size={15} />, hacer: ir("/") },
       { id: "campanas", grupo: "Ir a", texto: "Campañas", icono: <FolderKanban size={15} />, hacer: ir("/campanas") },
       { id: "biblioteca", grupo: "Ir a", texto: "Biblioteca", icono: <Images size={15} />, hacer: ir("/biblioteca") },
+      { id: "video", grupo: "Ir a", texto: "Editor de video", icono: <Clapperboard size={15} />, hacer: ir("/video") },
       { id: "landing", grupo: "Ir a", texto: "Landing", icono: <PanelsTopLeft size={15} />, hacer: ir("/landing") },
       { id: "mercado", grupo: "Ir a", texto: "Mercado", icono: <Globe size={15} />, hacer: ir("/mercado") },
       { id: "habilidades", grupo: "Ir a", texto: "Habilidades", icono: <Puzzle size={15} />, hacer: ir("/habilidades") },

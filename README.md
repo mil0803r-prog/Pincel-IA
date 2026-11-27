@@ -74,6 +74,26 @@ Pincel IA te avisa solo, sin que tengas que recargar, cuando algo pasa:
 
 Los avisos salen como mensaje emergente, en la **campanita** (arriba a la izquierda, con el número de sin leer), en el título de la pestaña y, si lo activas en el panel, como **aviso del navegador** aunque estés en otra pestaña. En **Conexiones** ves cuándo fue la última actividad de ChatGPT y de Claude, lo que confirma que el conector funciona.
 
+## Editor de video
+
+Menú **Video**: un editor por línea de tiempo, al estilo CapCut, que funciona dentro de tu navegador. No sube nada al servidor, así que también funciona en Vercel sin límites de tamaño.
+
+- **Importar:** videos, fotos y música (botón o arrastrando).
+- **Pistas:** texto, superposición, video principal (magnética: los clips quedan seguidos) y dos de audio.
+- **Edición:** dividir en el cabezal (S), recortar arrastrando los bordes, mover, duplicar (Ctrl+D), borrar, deshacer y rehacer, e imán a bordes y cabezal.
+- **Audio:**
+  - Separar el audio de un video a su propia pista.
+  - Extraer el audio en WAV, a la biblioteca o descargado.
+  - Volumen hasta 200 %, silenciar y fundidos de entrada y salida.
+- **Ajustes:** velocidad de 0,1x a 8x, escala, posición (también arrastrando en la vista previa), rotación, opacidad, filtros y animaciones de entrada y salida.
+- **Textos:** plantillas de título, subtítulo, precio u oferta y llamado a WhatsApp, con fuente, color, fondo y contorno.
+- **Formatos:** 9:16, 16:9, 1:1 y 4:5.
+- **Exportar:**
+  - Video en MP4 (o WebM si el navegador no tiene MP4), en 720p o 1080p.
+  - O solo el audio mezclado, en WAV.
+  - La exportación tarda lo mismo que dura el video. Usa Chrome o Edge en computadora.
+- **Guardado:** los proyectos se guardan solos en este navegador.
+
 ## Lo que tienes que saber
 - **ChatGPT crea las imágenes una por una.** Si se detiene a mitad, dile "continúa". Tu plan tiene un límite de imágenes por periodo.
 - **El envío automático desde ChatGPT puede fallar.** Depende de cómo ChatGPT maneje los archivos, y eso cambia seguido. Si no puede, te da el link de la campaña: descargas las imágenes y las arrastras todas juntas.

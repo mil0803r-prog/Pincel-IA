@@ -16,6 +16,8 @@ import Landings from "./pages/Landings";
 import Landing from "./pages/Landing";
 import Mercado from "./pages/Mercado";
 import Habilidades from "./pages/Habilidades";
+import Videos from "./pages/Videos";
+import Editor from "./pages/Editor";
 
 export default function App() {
   const [sesion, setSesion] = useState<boolean | null>(null);
@@ -47,6 +49,7 @@ export default function App() {
       ) : (
         <Router>
           <Routes>
+            <Route path="video/:id" element={<Editor />} />
             <Route element={<Layout onSalir={cerrar} />}>
               <Route index element={<Inicio />} />
               <Route path="campanas" element={<Campanas />} />
@@ -57,6 +60,7 @@ export default function App() {
               <Route path="landing/:id" element={<Landing />} />
               <Route path="mercado" element={<Mercado />} />
               <Route path="habilidades" element={<Habilidades />} />
+              <Route path="video" element={<Videos />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

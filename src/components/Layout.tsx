@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { FolderKanban, Globe, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, PanelsTopLeft, Plug, Puzzle, Search, Sun, type LucideIcon } from "lucide-react";
+import { Clapperboard, FolderKanban, Globe, Images, LayoutDashboard, LogOut, Menu as MenuIcon, Moon, PanelsTopLeft, Plug, Puzzle, Search, Sun, type LucideIcon } from "lucide-react";
 import { Logo, useToast } from "./ui";
 import { Campanita, PanelAvisos, avisosDelNavegadorActivos, useAvisos } from "./Avisos";
 import Paleta from "./Paleta";
@@ -19,6 +19,7 @@ const GRUPOS: { titulo: string; modulos: Modulo[] }[] = [
       { ruta: "/", nombre: "Inicio", icono: LayoutDashboard },
       { ruta: "/campanas", nombre: "Campañas", icono: FolderKanban },
       { ruta: "/biblioteca", nombre: "Biblioteca", icono: Images },
+      { ruta: "/video", nombre: "Video", icono: Clapperboard },
     ],
   },
   {
